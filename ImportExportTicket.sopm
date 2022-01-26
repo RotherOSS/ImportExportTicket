@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<otobo_package version="1.0">
+    <Name>ImportExportTicket</Name>
+    <Version>10.1.0</Version>
+    <Framework>10.1.x</Framework>
+    <PackageRequired Version='10.1.2'>ImportExport</PackageRequired>
+    <Vendor>Rother OSS GmbH</Vendor>
+    <URL>https://rother-oss.com/</URL>
+    <License>GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007</License>
+    <Description Lang="en">Ticket backend for the ImportExport module.</Description>
+    <Filelist>
+        <File Permission="660" Location="Kernel/Config/Files/XML/ImportExportTicket.xml" />
+        <File Permission="660" Location="Kernel/System/ImportExport/ObjectBackend/Ticket.pm" />
+    </Filelist>
+</otobo_package>

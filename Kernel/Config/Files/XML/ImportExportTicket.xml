@@ -10,6 +10,18 @@
             </Hash>
         </Value>
     </Setting>
+    <Setting Name="ImportExport::Ticket::SynchronizeWithForeignDB" Required="0" Valid="0">
+        <Description Translatable="1">If activated additional data such as the history and links will be read from a foreign DB containing the exported tickets and added to the imported tickets on this system. This is only available for created, not for updated tickets.</Description>
+        <Navigation>Core::ImportExport::ObjectBackend::Ticket</Navigation>
+        <Value>
+            <Hash>
+                <Item Key="DatabaseDSN"></Item>
+                <Item Key="DatabaseUser"></Item>
+                <Item Key="DatabasePw"></Item>
+                <Item Key="Type"></Item>
+            </Hash>
+        </Value>
+    </Setting>
     <Setting Name="ImportExport::Ticket::ImportValueMap###001-Custom" Required="0" Valid="0">
         <Description Translatable="1">Value map. Define a key and a value map from import file to OTOBO.</Description>
         <Navigation>Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps</Navigation>
