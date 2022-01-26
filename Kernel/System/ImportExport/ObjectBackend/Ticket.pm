@@ -1015,6 +1015,9 @@ sub ImportDataSave {
     my %Article;
     my %Identifier;
 
+    my $MappingConfig = $Self->{ConfigObject}->Get(ImportExport::Ticket::ImportValueMap) // {};
+    my %ValueMap      = map { $_->{Key} => $_->{Map} } values $MappingConfig->%*;
+
     # handle a separate article
     if ( $ObjectData->{IncludeArticles} && $ObjectData->{ArticleSeparateLines} && !$Param{ImportDataRow}[0] ) {
         my $i = 1;
@@ -1022,7 +1025,9 @@ sub ImportDataSave {
         for my $MappingObjectData ( @MappingObjectList ) {
 
             if ( $MappingObjectData->{Key} =~ /^Article_(.+)$/ ) {
-                $Article{$1} = $Param{ImportDataRow}[$i++];
+                my $Value = $Param{ImportDataRow}[$i++];
+                $Article{$1} = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && $ValueMap{ $MappingObjectData->{Key} }{ $Value }
+                    ? $ValueMap{ $MappingObjectData->{Key} }{ $Value } : $Value;
             }
             else {
                 next MAPPINGOBJECTDATA;
@@ -1058,22 +1063,28 @@ sub ImportDataSave {
         }
     } 
 
-    elsif ( $ObjectData->{IncludeArticles} && !$ObjectData->{ArticleSeparateLines} ) {
+    else {
         MAPPINGOBJECTDATA:
         for my $i (0..$#MappingObjectList) {
 
             my $MappingObjectData = $MappingObjectList[$i];
 
+            my $Value = $Param{ImportDataRow}[$i];
+            $Value = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && $ValueMap{ $MappingObjectData->{Key} }{ $Value }
+                ? $ValueMap{ $MappingObjectData->{Key} }{ $Value } : $Value;
+
             if ( $MappingObjectData->{Key} =~ /^Article_(.+)$/ ) {
-                $Article{$1} = $Param{ImportDataRow}[$i];
+                next MAPPINGOBJECTDATA if $ObjectData->{ArticleSeparateLines} || !$ObjectData->{IncludeArticles};
+
+                $Article{$1} = $Value;
             }
             else {
-                $Ticket{ $MappingObjectData->{Key} } = $Param{ImportDataRow}[$i];
+                $Ticket{ $MappingObjectData->{Key} } = $Value;
             }
 
             next MAPPINGOBJECTDATA if !$MappingObjectData->{Identifier};
 
-            if ( !$Param{ImportDataRow}[$i] ) {
+            if ( !$Value ) {
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
                     Priority => 'error',
                     Message =>
