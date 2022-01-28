@@ -30,7 +30,7 @@ our @ObjectDependencies = (
     'Kernel::System::DynamicField',
     'Kernel::System::DynamicField::Backend',
     'Kernel::System::ImportExport',
-    'Kernel::System::Link',
+    'Kernel::System::LinkObject',
     'Kernel::System::Lock',
     'Kernel::System::Log',
     'Kernel::System::Priority',
@@ -759,7 +759,7 @@ sub ExportDataGet {
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
 
     # Search all Ticket_IDs
-    my @TicketIDs = $TicketObject->TicketSearch(
+    my @TicketIDs = sort { $a <=> $b } $TicketObject->TicketSearch(
         %SearchDataPrepared,
         Result => 'ARRAY',
         UserID => 1,
@@ -1044,7 +1044,7 @@ sub ImportDataSave {
 
             if ( $MappingObjectData->{Key} =~ /^Article_(.+)$/ ) {
                 my $Value = $Param{ImportDataRow}[ $i++ ];
-                $Article{$1} = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && $ValueMap{ $MappingObjectData->{Key} }{$Value}
+                $Article{$1} = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && defined $ValueMap{ $MappingObjectData->{Key} }{$Value}
                     ? $ValueMap{ $MappingObjectData->{Key} }{$Value} : $Value;
             }
             else {
@@ -1722,6 +1722,9 @@ sub _ImportTicket {
 
     my $DynamicFieldObject        = $Kernel::OM->Get('Kernel::System::DynamicField');
     my $DynamicFieldBackendObject = $Kernel::OM->Get('Kernel::System::DynamicField::Backend');
+    my %MultiSelectFields         = (
+        TMS => 1,
+    );
 
     # dynamic fields
     DYNAMICFIELD:
@@ -1740,6 +1743,8 @@ sub _ImportTicket {
         );
 
         my $Multi = ref $DBValue eq 'ARRAY';
+        $Multi  ||= $MultiSelectFields{$1};
+
         if ($Multi) {
             $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode_base64($_) } split( '###', $Ticket{$Attr} ) ] : [];
         }
@@ -1796,8 +1801,8 @@ sub _ImportArticle {
     my %Article = $Param{Article}->%*;
 
     my $TicketID =
-        $Article{TicketID}    ? $Self->{TicketIDRelation}{ $Article{TicketID} } :
-        $Self->{LastTicketID} ? $Self->{TicketIDRelation}{ $Self->{LastTicketID} } : '';
+        $Article{TicketID} && $Self->{TicketIDRelation}{ $Article{TicketID} } ? $Self->{TicketIDRelation}{ $Article{TicketID} } :
+        $Self->{LastTicketID} ? $Self->{LastTicketID} : '';
 
     return $Self->_ImportError(
         %Param,
@@ -1843,7 +1848,7 @@ sub _ImportArticle {
         NoAgentNotify        => 1,
         TicketID             => $TicketID,
         SenderType           => $Article{SenderType} || $Param{ObjectData}{SenderType},
-        IsVisibleForCustomer => $Article{IsVisibleForCustomer} && $Article{IsVisibleForCustomer} eq 1 ? 1 : $Param{ObjectData}{IsVisibleForCustomer},
+        IsVisibleForCustomer => defined $Article{IsVisibleForCustomer} && $Article{IsVisibleForCustomer} ne '' ? $Article{IsVisibleForCustomer} : $Param{ObjectData}{IsVisibleForCustomer} // 0,
         From                 => $Article{From},
         To                   => $Article{To},
         Cc                   => $Article{Cc},
@@ -1919,6 +1924,9 @@ sub _ImportArticle {
 
     my $DynamicFieldObject        = $Kernel::OM->Get('Kernel::System::DynamicField');
     my $DynamicFieldBackendObject = $Kernel::OM->Get('Kernel::System::DynamicField::Backend');
+    my %MultiSelectFields         = (
+        TMS => 1,
+    );
 
     # dynamic fields
     DYNAMICFIELD:
@@ -1937,6 +1945,8 @@ sub _ImportArticle {
         );
 
         my $Multi = ref $DBValue eq 'ARRAY';
+        $Multi  ||= $MultiSelectFields{$1};
+
         if ($Multi) {
             $Article{$Attr} = $Article{$Attr} ? [ map { decode_base64($_) } split( '###', $Article{$Attr} ) ] : [];
         }
@@ -2045,7 +2055,7 @@ sub _SynchronizeExtendedDBEntries {
         while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
             return if !$Self->{DBObject}->Do(
                 SQL =>
-                    'INSERT INTO history (ticket_id, article_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
+                    'INSERT INTO ticket_history (ticket_id, article_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
                     .
                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 Bind => [ \$Param{TicketID}, \$Param{ArticleID}, ( map { \$_ } @Row ) ],
@@ -2091,7 +2101,7 @@ sub _SynchronizeExtendedDBEntries {
     while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
         return if !$Self->{DBObject}->Do(
             SQL =>
-                'INSERT INTO history (ticket_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
+                'INSERT INTO ticket_history (ticket_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
                 .
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             Bind => [ \$Param{TicketID}, ( map { \$_ } @Row ) ],
@@ -2099,7 +2109,7 @@ sub _SynchronizeExtendedDBEntries {
     }
 
     # link_relation
-    my $LinkObject   = $Kernel::OM->Get('Kernel::System::Link');
+    my $LinkObject   = $Kernel::OM->Get('Kernel::System::LinkObject');
     my $LinkObjectID = $LinkObject->ObjectLookup(
         Name => 'Ticket',
     );
