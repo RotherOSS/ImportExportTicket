@@ -896,7 +896,8 @@ sub ExportDataGet {
                         my $AttachmentString;
                         for my $Key (qw( Filename ContentID ContentType Disposition Content ContentAlternative )) {
                             $Attachment{$Key} //= '';
-                            $AttachmentString .= $Key . '###' . encode_base64( $Attachment{$Key} ) . '###';
+                            $AttachmentString  .= $AttachmentString ? '###' : '';
+                            $AttachmentString  .= $Key . '###' . encode_base64( $Attachment{$Key} );
                         }
 
                         push @ArticleItem, $AttachmentString;
@@ -1889,10 +1890,10 @@ sub _ImportArticle {
     # attachments
     if ( $Param{ObjectData}{IncludeAttachments} && $Article{Attachments} ) {
         for my $AttachmentString ( $Article{Attachments}->@* ) {
-            my %Attachment = split( '###', $AttachmentString );
+            my %Attachment = split( '###', $AttachmentString, -1 );
 
             for my $Key ( keys %Attachment ) {
-                $Attachment{$Key} = decode_base64( $Attachment{$Key} );
+                $Attachment{$Key} = $Attachment{$Key} eq '' ? '' : decode_base64( $Attachment{$Key} );
             }
 
             my $Success = $ArticleBackendObject->ArticleWriteAttachment(
@@ -2013,6 +2014,15 @@ sub _ImportError {
 sub _SynchronizeExtendedDBEntries {
     my ( $Self, %Param ) = @_;
 
+    if ( !$Param{ForeignDB}{DatabaseDSN} ) {
+        $Kernel::OM->Get('Kernel::System::Log')->Log(
+            Priority => 'error',
+            Message  => 'Need a DatabaseDSN in the ForeignDB settings',
+        );
+
+        return;
+    }
+
     if ( !$Param{TicketID} || !( ( $Param{ArticleID} && $Param{ForeignArticleID} || $Param{ForeignTicketID} ) ) ) {
         $Kernel::OM->Get('Kernel::System::Log')->Log(
             Priority => 'error',
@@ -2109,10 +2119,41 @@ sub _SynchronizeExtendedDBEntries {
     }
 
     # link_relation
-    my $LinkObject   = $Kernel::OM->Get('Kernel::System::LinkObject');
-    my $LinkObjectID = $LinkObject->ObjectLookup(
-        Name => 'Ticket',
+    my $LinkObject = $Kernel::OM->Get('Kernel::System::LinkObject');
+    my $ForeignTicketObjectID;
+
+    my %ForeignLinkObjects;
+    my %LObjectIDs;
+
+    return if !$Self->{FDBObject}->Prepare(
+        SQL => "SELECT id,name FROM link_object ",
+        Bind => [],
     );
+    while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
+        $ForeignLinkObjects{ $Row[0] } = $Row[1];
+        $LObjectIDs{ $Row[1] } = $LinkObject->ObjectLookup(
+            Name => $Row[1],
+        );
+
+        if ( $Row[1] eq 'Ticket' ) {
+            $ForeignTicketObjectID = $Row[0];
+        }
+    }
+
+    my %ForeignLinkTypes;
+    my %LTypeIDs;
+
+    return if !$Self->{FDBObject}->Prepare(
+        SQL  => "SELECT id,name FROM link_type ",
+        Bind => [],
+    );
+    while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
+        $ForeignLinkTypes{ $Row[0] } = $Row[1];
+        $LTypeIDs{ $Row[1] } = $LinkObject->TypeLookup(
+            Name   => $Row[1],
+            UserID => 1,
+        );
+    }
 
     my %Direction = (
         source => 'target',
@@ -2120,17 +2161,21 @@ sub _SynchronizeExtendedDBEntries {
     );
 
     for my $Key ( keys %Direction ) {
+
         return if !$Self->{FDBObject}->Prepare(
-            SQL => "SELECT $Key\_object_id, $Key\_key, type_id, state_id FROM link_relation " .
+            SQL => "SELECT $Key"."_object_id, $Key"."_key, type_id, state_id FROM link_relation " .
                 "WHERE $Direction{$Key}_object_id = ? AND $Direction{$Key}_key = ?",
-            Bind => [ \$LinkObjectID, \$Param{ForeignTicketID} ],
+            Bind => [ \$ForeignTicketObjectID, \$Param{ForeignTicketID} ],
         );
 
         LINK:
         while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
 
+            $Row[0] = $LObjectIDs{ $ForeignLinkObjects{ $Row[0] } };
+            $Row[2] = $LTypeIDs{ $ForeignLinkTypes{ $Row[2] } };
+
             # deal with other imported tickets
-            if ( $Row[0] == $LinkObjectID ) {
+            if ( $Row[0] == $LObjectIDs{Ticket} ) {
                 next LINK if $Row[1] > $Param{ForeignTicketID};
 
                 $Row[1] = exists $Self->{TicketIDRelation}{ $Row[1] } ? $Self->{TicketIDRelation}{ $Row[1] } : $Row[1];
@@ -2140,7 +2185,7 @@ sub _SynchronizeExtendedDBEntries {
                 SQL =>
                     "INSERT INTO link_relation ($Direction{$Key}_object_id, $Direction{$Key}_key, $Key\_object_id, $Key\_key, type_id, state_id, create_time, create_by) " .
                     "VALUES (?, ?, ?, ?, ?, ?, current_timestamp, ?)",
-                Bind => [ \$Param{TicketID}, \$LinkObjectID, ( map { \$_ } @Row ), \1 ],
+                Bind => [ \$LObjectIDs{Ticket}, \$Param{TicketID}, ( map { \$_ } @Row ), \1 ],
             );
         }
     }
