@@ -394,7 +394,7 @@ sub MappingObjectAttributesGet {
     my @ElementList = map { { Key => $_, Value => $_ } }
         qw( TicketID TicketNumber Title Type TypeID Queue QueueID Service ServiceID SLA
         SLAID State StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock
-        LockID Responsible ResponsibleID ArchiveFlag );
+        LockID Responsible ResponsibleID ArchiveFlag Created );
 
     my $DynamicFieldObject = $Kernel::OM->Get('Kernel::System::DynamicField');
 
@@ -416,7 +416,7 @@ sub MappingObjectAttributesGet {
         # columns for articles
         push @ElementList, map { { Key => "Article_$_", Value => "Article_$_" } }
             qw( ArticleID ArticleBackend From To Cc Bcc Subject Body SenderType IsVisibleForCustomer
-            MessageID ReplyTo InReplyTo References Charset MimeType PlainEmail );
+            MessageID ReplyTo InReplyTo References Charset MimeType PlainEmail Created );
 
         # columns for article dynamic fields
         my $DynFieldList = $DynamicFieldObject->DynamicFieldList(
@@ -1706,6 +1706,15 @@ sub _ImportTicket {
             TicketID => $DBTicket{TicketID},
         );
 
+        if ( $Ticket{Created} ) {
+            $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
+
+            return if !$Self->{DBObject}->Do(
+                SQL => "UPDATE ticket SET create_time = ? WHERE id = ?",
+                Bind => [ \$Ticket{Created}, \$DBTicket{TicketID} ],
+            );
+        }
+
         my $SyncDBConfig = $Self->{ConfigObject}->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
         if ($SyncDBConfig) {
             my $Success = $Self->_SynchronizeExtendedDBEntries(
@@ -1869,6 +1878,15 @@ sub _ImportArticle {
         %Param,
         Message => "Could not create the article",
     ) if !$ArticleID;
+
+    if ( $Article{Created} ) {
+        $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
+
+        return if !$Self->{DBObject}->Do(
+            SQL => "UPDATE article SET create_time = ? WHERE id = ?",
+            Bind => [ \$Article{Created}, \$ArticleID ],
+        );
+    }
 
     my $SyncDBConfig = $Self->{ConfigObject}->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
     if ($SyncDBConfig) {
