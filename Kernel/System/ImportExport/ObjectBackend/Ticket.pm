@@ -1199,23 +1199,23 @@ sub _ImportTicket {
         if ( $Param{Identifier}{TicketID} ) {
 
             # check previously imported tickets of this run
-            if ( $Self->{ImportedIDRelation}{ $Ticket{TicketID} } ) {
+            if ( $Self->{TicketIDRelation}{ $Ticket{TicketID} } ) {
 
                 # we silently skip this ticket, if it already has been imported
                 # this situation will always occur when articles are not imported separately
                 # for the sake of consistency, we treat other situations the same, although they are less clear
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
-                    && $Self->{LastTicketID} == $Self->{ImportedIDRelation}{ $Ticket{TicketID} } ? 'debug' : 'info';
+                    && $Self->{LastTicketID} == $Self->{TicketIDRelation}{ $Ticket{TicketID} } ? 'debug' : 'info';
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
                     Priority => $Prio,
                     Message  => "Skipping ticket creation for entity $Param{Counter} (TicketID $Ticket{TicketID}) as it was handled before."
                 );
-                $Self->{LastTicketID} = $Self->{ImportedIDRelation}{ $Ticket{TicketID} };
+                $Self->{LastTicketID} = $Self->{TicketIDRelation}{ $Ticket{TicketID} };
                 return $Status;
             }
 
             # existing but undefined entry means previous error - we skip and do nothing
-            elsif ( exists $Self->{ImportedIDRelation}{ $Ticket{TicketID} } ) {
+            elsif ( exists $Self->{TicketIDRelation}{ $Ticket{TicketID} } ) {
                 return $Self->_ImportError(
                     %Param,
                     Message => "TicketID $Ticket{TicketID} was incorrectly imported before canceling new try.",
@@ -1223,7 +1223,7 @@ sub _ImportTicket {
             }
 
             # exclude tickets which were created in this run and by chance got the current TicketID
-            elsif ( !{ reverse $Self->{ImportedIDRelation}->%* }->{ $Ticket{TicketID} } ) {
+            elsif ( !{ reverse $Self->{TicketIDRelation}->%* }->{ $Ticket{TicketID} } ) {
                 $DBTicketID = $Ticket{TicketID};
             }
         }
@@ -1231,23 +1231,23 @@ sub _ImportTicket {
         elsif ( $Param{Identifier}{TicketNumber} ) {
 
             # check previously imported tickets of this run
-            if ( $Self->{ImportedNumberIDRelation}{ $Ticket{TicketNumber} } ) {
+            if ( $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } ) {
 
                 # we silently skip this ticket, if it already has been imported
                 # this situation will always occur when articles are not imported separately
                 # for the sake of consistency, we treat other situations the same, although they are less clear
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
-                    && $Self->{LastTicketID} == $Self->{ImportedNumberIDRelation}{ $Ticket{TicketNumber} } ? 'debug' : 'info';
+                    && $Self->{LastTicketID} == $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } ? 'debug' : 'info';
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
                     Priority => $Prio,
                     Message  => "Skipping ticket creation for entity $Param{Counter} (TicketNumber $Ticket{TicketNumber}) as it was handled before."
                 );
-                $Self->{LastTicketID} = $Self->{ImportedNumberIDRelation}{ $Ticket{TicketNumber} };
+                $Self->{LastTicketID} = $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} };
                 return $Self->{LastTicketID};
             }
 
             # existing but undefined entry means previous error - we skip and do nothing
-            elsif ( exists $Self->{ImportedNumberIDRelation}{ $Ticket{TicketNumber} } ) {
+            elsif ( exists $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } ) {
                 return $Self->_ImportError(
                     %Param,
                     Message => "TicketNumber $Ticket{TicketNumber} was incorrectly imported before canceling new try.",
@@ -1783,13 +1783,11 @@ sub _ImportTicket {
         ) if !$Success;
     }
 
-    if ( $Param{Identifier} ) {
-        if ( $Param{Identifier}{TicketID} || $Param{ObjectData}{IncludeArticles} ) {
-            $Self->{TicketIDRelation}{ $Ticket{TicketID} } = $DBTicket{TicketID};
-        }
-        if ( $Param{Identifier}{TicketNumber} ) {
-            $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } = $DBTicket{TicketID};
-        }
+    if ( $Param{Identifier}{TicketID} || $Param{ObjectData}{IncludeArticles} ) {
+        $Self->{TicketIDRelation}{ $Ticket{TicketID} } = $DBTicket{TicketID};
+    }
+    if ( $Param{Identifier}{TicketNumber} ) {
+        $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } = $DBTicket{TicketID};
     }
     $Self->{LastTicketID} = $DBTicket{TicketID};
 
