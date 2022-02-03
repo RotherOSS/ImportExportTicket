@@ -1694,6 +1694,7 @@ sub _ImportTicket {
 
         $DBTicket{TicketID} = $TicketObject->TicketCreate(
             %DBTicket,
+            TN     => $Ticket{TicketNumber} // '',
             UserID => 1,
         );
 
