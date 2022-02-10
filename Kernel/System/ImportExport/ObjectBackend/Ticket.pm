@@ -22,6 +22,7 @@ use warnings;
 use Kernel::Language qw(Translatable);
 use Kernel::System::VariableCheck qw(:all);
 
+use Encode;
 use MIME::Base64 qw(encode_base64 decode_base64);
 
 our @ObjectDependencies = (
@@ -839,8 +840,8 @@ sub ExportDataGet {
             my $Key = $TicketMapping[$i]{Key};
 
             $TicketItem[$i] = $Key && defined $TicketData{$Key}
-                ? IsArrayRefWithData( $TicketData{$Key} ) ? join( '###', ( map { encode_base64($_) } $TicketData{$Key}->@* ) ) : $TicketData{$Key}
-                :                                           '';
+                ? IsArrayRefWithData( $TicketData{$Key} ) ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $TicketData{$Key}->@* ) )
+                : $TicketData{$Key} : '';
         }
 
         if ( !$ObjectData->{IncludeArticles} || $ObjectData->{ArticleSeparateLines} ) {
@@ -876,18 +877,18 @@ sub ExportDataGet {
                 }
 
                 my @ArticleItem = $ObjectData->{ArticleSeparateLines} ? ('') : @TicketItem;
-                ARTICLE:
+                ARTICLEMAP:
                 for my $i ( 0 .. $ArticleMappingLast ) {
 
                     # empty fields are done in the ticket part
-                    next ARTICLE if !$ArticleMapping[$i];
+                    next ARTICLEMAP if !$ArticleMapping[$i];
 
                     # extract key
                     my $Key = $ArticleMapping[$i]{Key};
 
                     $ArticleItem[$i] = defined $ArticleFull{$Key}
-                        ? IsArrayRefWithData( $ArticleFull{$Key} ) ? join( '###', ( map { encode_base64($_) } $ArticleFull{$Key}->@* ) ) : $ArticleFull{$Key}
-                        :                                            '';
+                        ? IsArrayRefWithData( $ArticleFull{$Key} ) ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $ArticleFull{$Key}->@* ) )
+                        : $ArticleFull{$Key} : '';
                 }
 
                 if ( $ObjectData->{IncludeAttachments} && $ArticleBackendObject->can('ArticleAttachmentIndex') ) {
@@ -901,6 +902,10 @@ sub ExportDataGet {
                             ArticleID => $Article->{ArticleID},
                             FileID    => $Key,
                         );
+
+                        for my $Key (qw( Filename ContentType Disposition )) {
+                            $Attachment{$Key} = Encode::encode( 'UTF-8', $Attachment{$Key} );
+                        }
 
                         my $AttachmentString;
                         for my $Key (qw( Filename ContentID ContentType Disposition Content ContentAlternative )) {
@@ -1742,9 +1747,7 @@ sub _ImportTicket {
 
     my $DynamicFieldObject        = $Kernel::OM->Get('Kernel::System::DynamicField');
     my $DynamicFieldBackendObject = $Kernel::OM->Get('Kernel::System::DynamicField::Backend');
-    my %MultiSelectFields         = (
-        TMS => 1,
-    );
+    my %StandardMultiSelect       = map { $_ => 1 } qw( Multiselect Database WebService );
 
     # dynamic fields
     DYNAMICFIELD:
@@ -1762,11 +1765,9 @@ sub _ImportTicket {
             UserID             => 1,
         );
 
-        my $Multi = ref $DBValue eq 'ARRAY';
-        $Multi  ||= $MultiSelectFields{$1};
-
-        if ($Multi) {
-            $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode_base64($_) } split( '###', $Ticket{$Attr} ) ] : [];
+        # multi select fields need special treatment
+        if ( $StandardMultiSelect{ $DynamicFieldConfig->{FieldType} } || ref $DBValue eq 'ARRAY' ) {
+            $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( '###', $Ticket{$Attr} ) ] : [];
         }
 
         next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
@@ -1922,6 +1923,13 @@ sub _ImportArticle {
                 $Attachment{$Key} = $Attachment{$Key} eq '' ? '' : decode_base64( $Attachment{$Key} );
             }
 
+            KEY:
+            for my $Key (qw( Filename ContentType Disposition )) {
+                next KEY if !$Attachment{$Key};
+
+                $Attachment{$Key} = Encode::decode( 'UTF-8', $Attachment{$Key} );
+            }
+
             my $Success = $ArticleBackendObject->ArticleWriteAttachment(
                 %Attachment,
                 ArticleID => $ArticleID,
@@ -1951,9 +1959,7 @@ sub _ImportArticle {
 
     my $DynamicFieldObject        = $Kernel::OM->Get('Kernel::System::DynamicField');
     my $DynamicFieldBackendObject = $Kernel::OM->Get('Kernel::System::DynamicField::Backend');
-    my %MultiSelectFields         = (
-        TMS => 1,
-    );
+    my %StandardMultiSelect       = map { $_ => 1 } qw( Multiselect Database WebService );
 
     # dynamic fields
     DYNAMICFIELD:
@@ -1974,8 +1980,9 @@ sub _ImportArticle {
         my $Multi = ref $DBValue eq 'ARRAY';
         $Multi  ||= $MultiSelectFields{$1};
 
-        if ($Multi) {
-            $Article{$Attr} = $Article{$Attr} ? [ map { decode_base64($_) } split( '###', $Article{$Attr} ) ] : [];
+        # multi select fields need special treatment
+        if ( $StandardMultiSelect{ $DynamicFieldConfig->{FieldType} } || ref $DBValue eq 'ARRAY' ) {
+            $Article{$Attr} = $Article{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( '###', $Article{$Attr} ) ] : [];
         }
 
         next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
