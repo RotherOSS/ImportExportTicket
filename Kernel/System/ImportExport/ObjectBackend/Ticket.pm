@@ -1977,9 +1977,6 @@ sub _ImportArticle {
             UserID             => 1,
         );
 
-        my $Multi = ref $DBValue eq 'ARRAY';
-        $Multi  ||= $MultiSelectFields{$1};
-
         # multi select fields need special treatment
         if ( $StandardMultiSelect{ $DynamicFieldConfig->{FieldType} } || ref $DBValue eq 'ARRAY' ) {
             $Article{$Attr} = $Article{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( '###', $Article{$Attr} ) ] : [];
