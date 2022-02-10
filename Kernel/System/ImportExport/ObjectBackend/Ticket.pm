@@ -403,7 +403,7 @@ sub MappingObjectAttributesGet {
         ObjectType => 'Ticket',
         ResultType => 'HASH',
     );
-    push @ElementList, map { { Key => "DynamicField_$_", Value => "DynamicField_$_" } } values %{$DynFieldList};
+    push @ElementList, map { { Key => "DynamicField_$_", Value => "DynamicField_$_" } } sort values %{$DynFieldList};
 
     if ( $ObjectData->{IncludeArticles} ) {
         if ( $ObjectData->{ArticleSeparateLines} ) {
@@ -497,7 +497,7 @@ sub SearchAttributesGet {
 
     my @Attributes = (
         {
-            Key   => 'QueueID',
+            Key   => 'QueueIDs',
             Name  => 'Queue',
             Input => {
                 Type         => 'Selection',
@@ -518,7 +518,7 @@ sub SearchAttributesGet {
         );
 
         push @Attributes, {
-            Key   => 'TypeID',
+            Key   => 'TypeIDs',
             Name  => 'Type',
             Input => {
                 Type         => 'Selection',
@@ -539,7 +539,7 @@ sub SearchAttributesGet {
         );
 
         push @Attributes, {
-            Key   => 'ServiceID',
+            Key   => 'ServiceIDs',
             Name  => 'Service',
             Input => {
                 Type         => 'Selection',
@@ -558,7 +558,7 @@ sub SearchAttributesGet {
         );
 
         push @Attributes, {
-            Key   => 'SLAID',
+            Key   => 'SLAIDs',
             Name  => 'SLA',
             Input => {
                 Type         => 'Selection',
@@ -575,7 +575,7 @@ sub SearchAttributesGet {
 
     push @Attributes, (
         {
-            Key   => 'StateID',
+            Key   => 'StateIDs',
             Name  => 'State',
             Input => {
                 Type         => 'Selection',
@@ -589,7 +589,7 @@ sub SearchAttributesGet {
             },
         },
         {
-            Key   => 'PriorityID',
+            Key   => 'PriorityIDs',
             Name  => 'Priority',
             Input => {
                 Type         => 'Selection',
@@ -600,6 +600,15 @@ sub SearchAttributesGet {
                 Size         => 5,
                 Multiple     => 1,
                 Class        => 'Modernize',
+            },
+        },
+        {
+            Key   => 'CustomerID',
+            Name  => 'CustomerID',
+            Input => {
+                Type      => 'Text',
+                Size      => 50,
+                MaxLength => 250,
             },
         },
         {
@@ -746,7 +755,7 @@ sub ExportDataGet {
         UserID     => $Param{UserID},
     );
 
-    my %IsSelection = map { $_ => 1 } qw( TypeID QueueID ServiceID SLAID StateID PriorityID );
+    my %IsSelection = map { $_ => 1 } qw( TypeIDs QueueIDs ServiceIDs SLAIDs StateIDs PriorityIDs CustomerID );
 
     my %SearchDataPrepared;
     KEY:
@@ -1090,7 +1099,7 @@ sub ImportDataSave {
             my $MappingObjectData = $MappingObjectList[$i];
 
             my $Value = $Param{ImportDataRow}[$i];
-            $Value = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && $ValueMap{ $MappingObjectData->{Key} }{$Value}
+            $Value = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && defined $ValueMap{ $MappingObjectData->{Key} }{$Value}
                 ? $ValueMap{ $MappingObjectData->{Key} }{$Value} : $Value;
 
             if ( $MappingObjectData->{Key} =~ /^Article_(.+)$/ ) {
@@ -1608,8 +1617,8 @@ sub _ImportTicket {
         $Status = 'Created';
 
         # customer
-        $DBTicket{CustomerID}     = $Ticket{CustomerID}     || $Param{ObjectData}{CustomerID};
-        $DBTicket{CustomerUserID} = $Ticket{CustomerUserID} || $Param{ObjectData}{CustomerUserID};
+        $DBTicket{CustomerID}   = $Ticket{CustomerID}     || $Param{ObjectData}{CustomerID};
+        $DBTicket{CustomerUser} = $Ticket{CustomerUserID} || $Param{ObjectData}{CustomerUserID};
 
         # title
         $DBTicket{Title} = $Ticket{Title} || $Ticket{Title} eq '0' ? $Ticket{Title} : $Param{ObjectData}{Subject};
@@ -1638,7 +1647,7 @@ sub _ImportTicket {
                     Name => $Ticket{Service},
                 );
             }
-            $DBTicket{ServiceID} = $DBTicket{ServiceID} || $Param{ObjectData}{ServiceID};
+            $DBTicket{ServiceID} = $Ticket{ServiceID} || $Param{ObjectData}{ServiceID};
 
             # sla
             if ( !$Ticket{SLAID} && $Ticket{SLA} ) {
@@ -1789,7 +1798,7 @@ sub _ImportTicket {
 
         return $Self->_ImportError(
             %Param,
-            Message => "Could not update $Attr for TicketID $DBTicket{TicketID}",
+            Message => "Could not update $Attr to '$Ticket{$Attr}' for TicketID $DBTicket{TicketID}",
         ) if !$Success;
     }
 
