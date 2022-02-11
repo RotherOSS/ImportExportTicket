@@ -213,8 +213,7 @@ sub ObjectAttributesGet {
             Input => {
                 Type         => 'Selection',
                 Data         => \%UserList,
-                Required     => 0,
-                PossibleNone => 1,
+                Required     => 1,
                 Translation  => 0,
                 Class        => 'Modernize',
             },
@@ -334,7 +333,7 @@ sub ObjectAttributesGet {
         },
         {
             Key   => 'ArticleSeparateLines',
-            Name  => 'Articles are stored on separate lines beneath the tickets indicated by a blank first entry',
+            Name  => 'Store articles on separate lines indicated by a blank first entry',
             Input => {
                 Type => 'Checkbox',
             },
@@ -417,7 +416,7 @@ sub MappingObjectAttributesGet {
         # columns for articles
         push @ElementList, map { { Key => "Article_$_", Value => "Article_$_" } }
             qw( ArticleID ArticleBackend From To Cc Bcc Subject Body SenderType IsVisibleForCustomer
-            MessageID ReplyTo InReplyTo References Charset MimeType PlainEmail Created );
+            MessageID ReplyTo InReplyTo References Charset MimeType PlainEmail CreateTime );
 
         # columns for article dynamic fields
         my $DynFieldList = $DynamicFieldObject->DynamicFieldList(
@@ -1154,7 +1153,7 @@ sub ImportDataSave {
 
     my $Status = 'Skipped';
     $Self->{Error} = '';
-    if (%Ticket) {
+    if ( %Ticket && !exists $Self->{TicketIDRelation}{ $Ticket{TicketID} } ) {
         $Status = $Self->_ImportTicket(
             Ticket     => \%Ticket,
             Identifier => $Identifier{Ticket},
@@ -1890,12 +1889,12 @@ sub _ImportArticle {
         Message => "Could not create the article",
     ) if !$ArticleID;
 
-    if ( $Article{Created} ) {
+    if ( $Article{CreateTime} ) {
         $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
 
         return if !$Self->{DBObject}->Do(
             SQL => "UPDATE article SET create_time = ? WHERE id = ?",
-            Bind => [ \$Article{Created}, \$ArticleID ],
+            Bind => [ \$Article{CreateTime}, \$ArticleID ],
         );
     }
 
