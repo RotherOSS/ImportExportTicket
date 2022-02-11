@@ -14,20 +14,16 @@ System requirements
 
 Framework
 ---------
-OTOBO 10.1.x
+OTOBO 10.0.x
 
 Packages
 --------
-ImportExport 10.1.2
+ImportExport 10.0.1
  
 
 Third-party software
 --------------------
 \-
-
-Usage notes
-===========
-When using the extended synchronization, TicketID as well as Article_ArticleID have to be provided.
 
 Configuration Reference
 =======================
@@ -38,13 +34,6 @@ Core::ImportExport::ObjectBackend::ModuleRegistration
 ImportExport::ObjectBackendRegistration###Ticket
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Object backend module registration for the import/export module.
-
-Core::ImportExport::ObjectBackend::Ticket
-------------------------------------------------------------------------------------------------------------------------------
-
-ImportExport::Ticket::SynchronizeWithForeignDB
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If activated additional data such as the history and links will be read from a foreign DB containing the exported tickets and added to the imported tickets on this system. This is only available for created, not for updated tickets.
 
 Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps
 ------------------------------------------------------------------------------------------------------------------------------
