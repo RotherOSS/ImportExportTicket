@@ -27,6 +27,7 @@ Third-party software
 Usage
 =====
 In the ImportExport section of the admin interface a new backend (Ticket) is available. General usage is the same as other ImportExport modules. Identifiers can be used for tickets and articles to potentially skip the article. Rules are as follows:
+
 * TicketID or TicketNumber are required to be marked as identifier for ticket identification
 * Article_ArticleID is required to be marked as identifier for article identification
 * When using identification and the object is found in the system, tickets are just updated instead of created, articles are skipped
