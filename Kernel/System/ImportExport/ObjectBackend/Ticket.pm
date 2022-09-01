@@ -1086,7 +1086,7 @@ sub ImportDataSave {
                 return;
             }
 
-            $Identifier{Article} = 'ArticleID';
+            $Identifier{Article}{ArticleID} = 1;
         }
 
         if ( $ObjectData->{IncludeAttachments} && $i <= $#{ $Param{ImportDataRow} } ) {
@@ -1128,7 +1128,7 @@ sub ImportDataSave {
             }
 
             if ( $MappingObjectData->{Key} eq 'Article_ArticleID' ) {
-                $Identifier{Article} = 'ArticleID';
+                $Identifier{Article}{ArticleID} = 1;
             }
             elsif ( $MappingObjectData->{Key} =~ /^Article_/ ) {
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
