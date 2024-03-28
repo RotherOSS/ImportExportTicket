@@ -1024,6 +1024,8 @@ sub ImportDataSave {
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
+
+    # check object data
     if ( !$ObjectData || ref $ObjectData ne 'HASH' ) {
         $Kernel::OM->Get('Kernel::System::Log')->Log(
             Priority => 'error',
