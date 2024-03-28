@@ -2,7 +2,7 @@
 # OTOBO is a web-based ticketing system for service organisations.
 # --
 # Copyright (C) 2001-2020 OTRS AG, https://otrs.com/
-# Copyright (C) 2019-2022 Rother OSS GmbH, https://otobo.de/
+# Copyright (C) 2019-2024 Rother OSS GmbH, https://otobo.de/
 # --
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -16,11 +16,19 @@
 
 package Kernel::System::ImportExport::ObjectBackend::Ticket;
 
+use v5.24;
 use strict;
 use warnings;
+use namespace::autoclean;
+use utf8;
 
-use Kernel::Language qw(Translatable);
-use Kernel::System::VariableCheck qw(:all);
+# core modules
+
+# CPAN modules
+
+# OTOBO modules
+use Kernel::Language              qw(Translatable);
+use Kernel::System::VariableCheck qw(IsHashRefWithData);
 
 use Encode;
 use MIME::Base64 qw(encode_base64 decode_base64);
@@ -60,6 +68,7 @@ All functions to import and export tickets.
 create an object
 
     use Kernel::System::ObjectManager;
+
     local $Kernel::OM = Kernel::System::ObjectManager->new();
     my $BackendObject = $Kernel::OM->Get('Kernel::System::ImportExport::ObjectBackend::ITSMConfigItem');
 
@@ -70,8 +79,6 @@ sub new {
 
     # allocate new hash for object
     my $Self = {
-        ConfigObject           => $Kernel::OM->Get('Kernel::Config'),
-        ImportExportObject     => $Kernel::OM->Get('Kernel::System::ImportExport'),
         TicketIDRelation       => {},
         TicketNumberIDRelation => {},
     };
@@ -99,6 +106,7 @@ sub ObjectAttributesGet {
             Priority => 'error',
             Message  => 'Need UserID!',
         );
+
         return;
     }
 
@@ -128,7 +136,9 @@ sub ObjectAttributesGet {
         },
     );
 
-    if ( $Self->{ConfigObject}->Get('Ticket::Type') ) {
+    my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+
+    if ( $ConfigObject->Get('Ticket::Type') ) {
         my %TypeList = $Kernel::OM->Get('Kernel::System::Type')->TypeList(
             Valid => 1,
         );
@@ -146,7 +156,7 @@ sub ObjectAttributesGet {
         };
     }
 
-    if ( $Self->{ConfigObject}->Get('Ticket::Service') ) {
+    if ( $ConfigObject->Get('Ticket::Service') ) {
         my %ServiceList = $Kernel::OM->Get('Kernel::System::Service')->ServiceList(
             UserID => 1,
         );
@@ -211,11 +221,11 @@ sub ObjectAttributesGet {
             Key   => 'OwnerID',
             Name  => 'Default owner',
             Input => {
-                Type         => 'Selection',
-                Data         => \%UserList,
-                Required     => 1,
-                Translation  => 0,
-                Class        => 'Modernize',
+                Type        => 'Selection',
+                Data        => \%UserList,
+                Required    => 1,
+                Translation => 0,
+                Class       => 'Modernize',
             },
         },
         {
@@ -300,7 +310,7 @@ sub ObjectAttributesGet {
                 Required     => 0,
                 Size         => 50,
                 MaxLength    => 250,
-                ValueDefault => $Self->{ConfigObject}->Get('TicketImport::DefaultSubject'),
+                ValueDefault => $ConfigObject->Get('TicketImport::DefaultSubject'),
             },
         },
         {
@@ -311,7 +321,7 @@ sub ObjectAttributesGet {
                 Required     => 0,
                 Size         => 50,
                 MaxLength    => 250,
-                ValueDefault => $Self->{ConfigObject}->Get('TicketImport::DefaultBody'),
+                ValueDefault => $ConfigObject->Get('TicketImport::DefaultBody'),
             },
         },
         {
@@ -359,12 +369,25 @@ sub ObjectAttributesGet {
 
 =head2 MappingObjectAttributesGet()
 
-get the mapping attributes of an object as array/hash reference
+gets the mapping attributes of an object as reference to an array of hash references.
 
     my $Attributes = $ObjectBackend->MappingObjectAttributesGet(
         TemplateID => 123,
         UserID     => 1,
     );
+
+Returns:
+
+    # TODO
+    my $Attributes = [
+        {
+            Input => {
+                Data => [
+                    [...]
+                ],
+            },
+        },
+    ];
 
 =cut
 
@@ -378,18 +401,21 @@ sub MappingObjectAttributesGet {
                 Priority => 'error',
                 Message  => "Need $Argument!",
             );
+
             return;
         }
     }
 
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
+
     # get object data
-    my $ObjectData = $Self->{ImportExportObject}->ObjectDataGet(
+    my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
 
-    return [] if !$ObjectData;
-    return [] if ref $ObjectData ne 'HASH';
+    return [] unless $ObjectData;
+    return [] unless ref $ObjectData eq 'HASH';
 
     my @ElementList = map { { Key => $_, Value => $_ } }
         qw( TicketID TicketNumber Title Type TypeID Queue QueueID Service ServiceID SLA
@@ -426,7 +452,7 @@ sub MappingObjectAttributesGet {
         push @ElementList, map { { Key => "Article_DynamicField_$_", Value => "Article_DynamicField_$_" } } values %{$DynFieldList};
     }
 
-    my $Attributes = [
+    return [
         {
             Key   => 'Key',
             Name  => Translatable('Key'),
@@ -447,8 +473,6 @@ sub MappingObjectAttributesGet {
             },
         },
     ];
-
-    return $Attributes;
 }
 
 =head2 SearchAttributesGet()
@@ -472,18 +496,21 @@ sub SearchAttributesGet {
                 Priority => 'error',
                 Message  => "Need $Argument!",
             );
+
             return;
         }
     }
 
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
+
     # get object data
-    my $ObjectData = $Kernel::OM->Get('Kernel::System::ImportExport')->ObjectDataGet(
+    my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
 
-    return [] if !$ObjectData;
-    return [] if ref $ObjectData ne 'HASH';
+    return [] unless $ObjectData;
+    return [] unless ref $ObjectData eq 'HASH';
 
     my %QueueList = $Kernel::OM->Get('Kernel::System::Queue')->QueueList();
 
@@ -512,7 +539,9 @@ sub SearchAttributesGet {
         },
     );
 
-    if ( $Self->{ConfigObject}->Get('Ticket::Type') ) {
+    my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+
+    if ( $ConfigObject->Get('Ticket::Type') ) {
         my %TypeList = $Kernel::OM->Get('Kernel::System::Type')->TypeList(
             Valid => 1,
         );
@@ -533,7 +562,7 @@ sub SearchAttributesGet {
         };
     }
 
-    if ( $Self->{ConfigObject}->Get('Ticket::Service') ) {
+    if ( $ConfigObject->Get('Ticket::Service') ) {
         my %ServiceList = $Kernel::OM->Get('Kernel::System::Service')->ServiceList(
             UserID => 1,
         );
@@ -672,9 +701,9 @@ sub SearchAttributesGet {
 
 =head2 ExportDataGet()
 
-get export data as C<2D-array-hash> reference
+get export data as a reference to an array for array references, that is a C<2D-table>
 
-    my $ExportData = $ObjectBackend->ExportDataGet(
+    my $Rows = $ObjectBackend->ExportDataGet(
         TemplateID => 123,
         UserID     => 1,
     );
@@ -691,12 +720,15 @@ sub ExportDataGet {
                 Priority => 'error',
                 Message  => "Need $Argument!",
             );
+
             return;
         }
     }
 
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
+
     # get object data
-    my $ObjectData = $Self->{ImportExportObject}->ObjectDataGet(
+    my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
@@ -707,11 +739,12 @@ sub ExportDataGet {
             Priority => 'error',
             Message  => "No object data found for the template id $Param{TemplateID}",
         );
+
         return;
     }
 
     # get the mapping list
-    my $MappingList = $Self->{ImportExportObject}->MappingList(
+    my $MappingList = $ImportExportObject->MappingList(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
@@ -731,7 +764,7 @@ sub ExportDataGet {
     for my $MappingID ( @{$MappingList} ) {
 
         # get mapping object data
-        my $MappingObjectData = $Self->{ImportExportObject}->MappingObjectDataGet(
+        my $MappingObjectData = $ImportExportObject->MappingObjectDataGet(
             MappingID => $MappingID,
             UserID    => $Param{UserID},
         );
@@ -743,6 +776,7 @@ sub ExportDataGet {
                 Priority => 'error',
                 Message  => "No valid mapping list found for the template id $Param{TemplateID}",
             );
+
             return;
         }
 
@@ -750,7 +784,7 @@ sub ExportDataGet {
     }
 
     # get search data
-    my $SearchData = $Kernel::OM->Get('Kernel::System::ImportExport')->SearchDataGet(
+    my $SearchData = $ImportExportObject->SearchDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
@@ -762,7 +796,7 @@ sub ExportDataGet {
     for my $Key ( keys $SearchData->%* ) {
         next KEY if !defined $SearchData->{$Key};
 
-        $SearchDataPrepared{$Key} = $IsSelection{$Key} ? [ split '#####', $SearchData->{$Key} ] : $SearchData->{$Key};
+        $SearchDataPrepared{$Key} = $IsSelection{$Key} ? [ split /#####/, $SearchData->{$Key} ] : $SearchData->{$Key};
     }
 
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
@@ -778,7 +812,6 @@ sub ExportDataGet {
 
     my @ExportData;
     my %TicketData;
-    my %ArticleData;
 
     my @TicketMapping;
     my @ArticleMapping;
@@ -839,8 +872,10 @@ sub ExportDataGet {
             my $Key = $TicketMapping[$i]{Key};
 
             $TicketItem[$i] = $Key && defined $TicketData{$Key}
-                ? IsArrayRefWithData( $TicketData{$Key} ) ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $TicketData{$Key}->@* ) )
-                : $TicketData{$Key} : '';
+                ? IsArrayRefWithData( $TicketData{$Key} )
+                    ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $TicketData{$Key}->@* ) )
+                    : $TicketData{$Key}
+                : '';
         }
 
         if ( !$ObjectData->{IncludeArticles} || $ObjectData->{ArticleSeparateLines} ) {
@@ -886,8 +921,10 @@ sub ExportDataGet {
                     my $Key = $ArticleMapping[$i]{Key};
 
                     $ArticleItem[$i] = defined $ArticleFull{$Key}
-                        ? IsArrayRefWithData( $ArticleFull{$Key} ) ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $ArticleFull{$Key}->@* ) )
-                        : $ArticleFull{$Key} : '';
+                        ? IsArrayRefWithData( $ArticleFull{$Key} )
+                            ? join( '###', ( map { encode_base64( Encode::encode( 'UTF-8', $_ ) ) } $ArticleFull{$Key}->@* ) )
+                            : $ArticleFull{$Key}
+                        : '';
                 }
 
                 if ( $ObjectData->{IncludeAttachments} && $ArticleBackendObject->can('ArticleAttachmentIndex') ) {
@@ -909,8 +946,8 @@ sub ExportDataGet {
                         my $AttachmentString;
                         for my $Key (qw( Filename ContentID ContentType Disposition Content ContentAlternative )) {
                             $Attachment{$Key} //= '';
-                            $AttachmentString  .= $AttachmentString ? '###' : '';
-                            $AttachmentString  .= $Key . '###' . encode_base64( $Attachment{$Key} );
+                            $AttachmentString .= $AttachmentString ? '###' : '';
+                            $AttachmentString .= $Key . '###' . encode_base64( $Attachment{$Key} );
                         }
 
                         push @ArticleItem, $AttachmentString;
@@ -947,10 +984,11 @@ Fields with the digit '0' are not empty.
 
 An empty C<TicketID> indicates failure. Otherwise it indicates the
 location of the imported data.
-C<RetCode> is either 'Created', 'Updated' or 'Skipped'.
-'Created' means that a new ticket has been created.
-'Updated' means that the ticket has been updated.
-'Skipped' means that the data is identical and no changes were made.
+C<RetCode> is either 'Created', 'Updated' or 'Skipped'. 'Created' means that a new
+ticket has been created. 'Updated' means that the ticket has been updated. 'Skipped'
+means that the data is identical and no changes were made.
+
+No codes have yet been defined for the failure case.
 
 =cut
 
@@ -964,6 +1002,7 @@ sub ImportDataSave {
                 Priority => 'error',
                 Message  => "Need $Argument!",
             );
+
             return;
         }
     }
@@ -972,20 +1011,19 @@ sub ImportDataSave {
     if ( ref $Param{ImportDataRow} ne 'ARRAY' ) {
         $Kernel::OM->Get('Kernel::System::Log')->Log(
             Priority => 'error',
-            Message  =>
-                "Can't import entity $Param{Counter}: "
-                . "ImportDataRow must be an array reference",
+            Message  => "Can't import entity $Param{Counter}: ImportDataRow must be an array reference",
         );
+
         return;
     }
 
-    # get object data
-    my $ObjectData = $Self->{ImportExportObject}->ObjectDataGet(
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
+
+    # get object data, that is the config of this template
+    my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
-
-    # check object data
     if ( !$ObjectData || ref $ObjectData ne 'HASH' ) {
         $Kernel::OM->Get('Kernel::System::Log')->Log(
             Priority => 'error',
@@ -993,6 +1031,7 @@ sub ImportDataSave {
                 "Can't import entity $Param{Counter}: "
                 . "No object data found for the template id '$Param{TemplateID}'",
         );
+
         return;
     }
 
@@ -1000,7 +1039,7 @@ sub ImportDataSave {
     my $EmptyFieldsLeaveTheOldValues = $ObjectData->{EmptyFieldsLeaveTheOldValues};
 
     # get the mapping list
-    my $MappingList = $Self->{ImportExportObject}->MappingList(
+    my $MappingList = $ImportExportObject->MappingList(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
@@ -1014,15 +1053,17 @@ sub ImportDataSave {
                 "Can't import entity $Param{Counter}: "
                 . "No valid mapping list found for the template id '$Param{TemplateID}'",
         );
+
         return;
     }
 
     # create the mapping object list
+    # TODO: why is this called for every row of the import file ?
     my @MappingObjectList;
     for my $MappingID ( @{$MappingList} ) {
 
         # get mapping object data
-        my $MappingObjectData = $Kernel::OM->Get('Kernel::System::ImportExport')->MappingObjectDataGet(
+        my $MappingObjectData = $ImportExportObject->MappingObjectDataGet(
             MappingID => $MappingID,
             UserID    => $Param{UserID},
         );
@@ -1036,6 +1077,7 @@ sub ImportDataSave {
                     "Can't import entity $Param{Counter}: "
                     . "No mapping object data found for the mapping id '$MappingID'",
             );
+
             return;
         }
 
@@ -1047,7 +1089,8 @@ sub ImportDataSave {
     my %Article;
     my %Identifier;
 
-    my $MappingConfig = $Self->{ConfigObject}->Get('ImportExport::Ticket::ImportValueMap') // {};
+    my $ConfigObject  = $Kernel::OM->Get('Kernel::Config');
+    my $MappingConfig = $ConfigObject->Get('ImportExport::Ticket::ImportValueMap') // {};
     my %ValueMap      = map { $_->{Key} => $_->{Map} } values $MappingConfig->%*;
 
     # handle a separate article
@@ -1167,6 +1210,7 @@ sub ImportDataSave {
                     "Can't import entity $Param{Counter}: "
                     . "TicketImport: $Self->{Error}",
             );
+
             return;
         }
     }
@@ -1185,6 +1229,7 @@ sub ImportDataSave {
                     "Can't import entity $Param{Counter}: "
                     . "ArticleImport: $Self->{Error}",
             );
+
             return;
         }
 
@@ -1406,7 +1451,8 @@ sub _ImportTicket {
             ) if !$Success;
         }
 
-        if ( $Self->{ConfigObject}->Get('Ticket::Service') ) {
+        my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+        if ( $ConfigObject->Get('Ticket::Service') ) {
 
             # service
             if ( !$Ticket{ServiceID} && $Ticket{Service} ) {
@@ -1643,7 +1689,8 @@ sub _ImportTicket {
         }
         $DBTicket{TypeID} = $Ticket{TypeID} || $Param{ObjectData}{TypeID};
 
-        if ( $Self->{ConfigObject}->Get('Ticket::Service') ) {
+        my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+        if ( $ConfigObject->Get('Ticket::Service') ) {
 
             # service
             if ( !$Ticket{ServiceID} && $Ticket{Service} ) {
@@ -1724,12 +1771,12 @@ sub _ImportTicket {
             $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
 
             return if !$Self->{DBObject}->Do(
-                SQL => "UPDATE ticket SET create_time = ? WHERE id = ?",
+                SQL  => "UPDATE ticket SET create_time = ? WHERE id = ?",
                 Bind => [ \$Ticket{Created}, \$DBTicket{TicketID} ],
             );
         }
 
-        my $SyncDBConfig = $Self->{ConfigObject}->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
+        my $SyncDBConfig = $ConfigObject->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
         if ($SyncDBConfig) {
             my $Success = $Self->_SynchronizeExtendedDBEntries(
                 ForeignDB       => $SyncDBConfig,
@@ -1751,11 +1798,15 @@ sub _ImportTicket {
     # dynamic fields
     DYNAMICFIELD:
     for my $Attr ( keys %Ticket ) {
-        next DYNAMICFIELD if $Attr !~ /^DynamicField_(.+)$/;
-
-        my $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
-            Name => $1,
-        );
+        my $DynamicFieldConfig;
+        if ( $Attr =~ /^DynamicField_(.+)$/ ) {
+            $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
+                Name => $1,
+            );
+        }
+        else {
+            next DYNAMICFIELD;
+        }
 
         # get the current value
         my $DBValue = $DynamicFieldBackendObject->ValueGet(
@@ -1766,7 +1817,7 @@ sub _ImportTicket {
 
         # multi select fields need special treatment
         if ( $StandardMultiSelect{ $DynamicFieldConfig->{FieldType} } || ref $DBValue eq 'ARRAY' ) {
-            $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( '###', $Ticket{$Attr} ) ] : [];
+            $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( /###/, $Ticket{$Attr} ) ] : [];
         }
 
         next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
@@ -1820,7 +1871,7 @@ sub _ImportArticle {
 
     my $TicketID =
         $Article{TicketID} && $Self->{TicketIDRelation}{ $Article{TicketID} } ? $Self->{TicketIDRelation}{ $Article{TicketID} } :
-        $Self->{LastTicketID} ? $Self->{LastTicketID} : '';
+        $Self->{LastTicketID}                                                 ? $Self->{LastTicketID} : '';
 
     return $Self->_ImportError(
         %Param,
@@ -1846,12 +1897,13 @@ sub _ImportArticle {
         Message => "'$ChannelName' is (currently) not a supported ArticleBackend",
     ) if !$ValidImportChannel{$ChannelName};
 
+    my $ConfigObject         = $Kernel::OM->Get('Kernel::Config');
     my $ArticleBackendObject = $ArticleObject->BackendForChannel( ChannelName => $ChannelName );
 
     if ( $ChannelName eq 'Email' && !$Article{MessageID} ) {
         my $Time   = $Kernel::OM->Create('Kernel::System::DateTime')->ToEpoch();
         my $Random = rand 999999;
-        my $FQDN   = $Self->{ConfigObject}->Get('FQDN');
+        my $FQDN   = $ConfigObject->Get('FQDN');
         $Article{MessageID} = "<$Time.$Random\@$FQDN>";
     }
 
@@ -1866,22 +1918,23 @@ sub _ImportArticle {
         NoAgentNotify        => 1,
         TicketID             => $TicketID,
         SenderType           => $Article{SenderType} || $Param{ObjectData}{SenderType},
-        IsVisibleForCustomer => defined $Article{IsVisibleForCustomer} && $Article{IsVisibleForCustomer} ne '' ? $Article{IsVisibleForCustomer} : $Param{ObjectData}{IsVisibleForCustomer} // 0,
-        From                 => $Article{From},
-        To                   => $Article{To},
-        Cc                   => $Article{Cc},
-        Bcc                  => $Article{Bcc},
-        ReplyTo              => $Article{ReplyTo},
-        InReplyTo            => $Article{InReplyTo},
-        References           => $Article{References},
-        Subject              => $Article{Subject}  || $Param{ObjectData}{Subject},
-        Body                 => $Article{Body}     || $Param{ObjectData}{Body},
-        Charset              => $Article{Charset}  || 'utf-8',
-        MimeType             => $Article{MimeType} || 'text/plain',
-        HistoryType          => 'Misc',
-        HistoryComment       => $HistoryComment,
-        MessageID            => $Article{MessageID},
-        UserID               => 1,
+        IsVisibleForCustomer => defined $Article{IsVisibleForCustomer}
+            && $Article{IsVisibleForCustomer} ne '' ? $Article{IsVisibleForCustomer} : $Param{ObjectData}{IsVisibleForCustomer} // 0,
+        From           => $Article{From},
+        To             => $Article{To},
+        Cc             => $Article{Cc},
+        Bcc            => $Article{Bcc},
+        ReplyTo        => $Article{ReplyTo},
+        InReplyTo      => $Article{InReplyTo},
+        References     => $Article{References},
+        Subject        => $Article{Subject}  || $Param{ObjectData}{Subject},
+        Body           => $Article{Body}     || $Param{ObjectData}{Body},
+        Charset        => $Article{Charset}  || 'utf-8',
+        MimeType       => $Article{MimeType} || 'text/plain',
+        HistoryType    => 'Misc',
+        HistoryComment => $HistoryComment,
+        MessageID      => $Article{MessageID},
+        UserID         => 1,
     );
 
     return $Self->_ImportError(
@@ -1893,12 +1946,12 @@ sub _ImportArticle {
         $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
 
         return if !$Self->{DBObject}->Do(
-            SQL => "UPDATE article SET create_time = ? WHERE id = ?",
+            SQL  => "UPDATE article SET create_time = ? WHERE id = ?",
             Bind => [ \$Article{CreateTime}, \$ArticleID ],
         );
     }
 
-    my $SyncDBConfig = $Self->{ConfigObject}->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
+    my $SyncDBConfig = $ConfigObject->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
     if ($SyncDBConfig) {
         my $Success = $Self->_SynchronizeExtendedDBEntries(
             ForeignDB        => $SyncDBConfig,
@@ -1916,7 +1969,7 @@ sub _ImportArticle {
     # attachments
     if ( $Param{ObjectData}{IncludeAttachments} && $Article{Attachments} ) {
         for my $AttachmentString ( $Article{Attachments}->@* ) {
-            my %Attachment = split( '###', $AttachmentString, -1 );
+            my %Attachment = split( /###/, $AttachmentString, -1 );
 
             for my $Key ( keys %Attachment ) {
                 $Attachment{$Key} = $Attachment{$Key} eq '' ? '' : decode_base64( $Attachment{$Key} );
@@ -1963,11 +2016,15 @@ sub _ImportArticle {
     # dynamic fields
     DYNAMICFIELD:
     for my $Attr ( keys %Article ) {
-        next DYNAMICFIELD if $Attr !~ /^DynamicField_(.+)$/;
-
-        my $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
-            Name => $1,
-        );
+        my $DynamicFieldConfig;
+        if ( $Attr =~ /^DynamicField_(.+)$/ ) {
+            $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
+                Name => $1,
+            );
+        }
+        else {
+            next DYNAMICFIELD;
+        }
 
         # get the current value
         my $DBValue = $DynamicFieldBackendObject->ValueGet(
@@ -1978,7 +2035,7 @@ sub _ImportArticle {
 
         # multi select fields need special treatment
         if ( $StandardMultiSelect{ $DynamicFieldConfig->{FieldType} } || ref $DBValue eq 'ARRAY' ) {
-            $Article{$Attr} = $Article{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( '###', $Article{$Attr} ) ] : [];
+            $Article{$Attr} = $Article{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( /###/, $Article{$Attr} ) ] : [];
         }
 
         next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
@@ -2155,12 +2212,12 @@ sub _SynchronizeExtendedDBEntries {
     my %LObjectIDs;
 
     return if !$Self->{FDBObject}->Prepare(
-        SQL => "SELECT id,name FROM link_object ",
+        SQL  => "SELECT id,name FROM link_object ",
         Bind => [],
     );
     while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
         $ForeignLinkObjects{ $Row[0] } = $Row[1];
-        $LObjectIDs{ $Row[1] } = $LinkObject->ObjectLookup(
+        $LObjectIDs{ $Row[1] }         = $LinkObject->ObjectLookup(
             Name => $Row[1],
         );
 
@@ -2178,7 +2235,7 @@ sub _SynchronizeExtendedDBEntries {
     );
     while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
         $ForeignLinkTypes{ $Row[0] } = $Row[1];
-        $LTypeIDs{ $Row[1] } = $LinkObject->TypeLookup(
+        $LTypeIDs{ $Row[1] }         = $LinkObject->TypeLookup(
             Name   => $Row[1],
             UserID => 1,
         );
@@ -2192,7 +2249,7 @@ sub _SynchronizeExtendedDBEntries {
     for my $Key ( keys %Direction ) {
 
         return if !$Self->{FDBObject}->Prepare(
-            SQL => "SELECT $Key"."_object_id, $Key"."_key, type_id, state_id FROM link_relation " .
+            SQL => "SELECT $Key" . "_object_id, $Key" . "_key, type_id, state_id FROM link_relation " .
                 "WHERE $Direction{$Key}_object_id = ? AND $Direction{$Key}_key = ?",
             Bind => [ \$ForeignTicketObjectID, \$Param{ForeignTicketID} ],
         );
