@@ -14,11 +14,10 @@ System requirements
 
 Framework
 ---------
-OTOBO 10.1.x
+OTOBO 11.0.x
 
 Packages
 --------
-ImportExport 10.1.2
  
 Third-party software
 --------------------
