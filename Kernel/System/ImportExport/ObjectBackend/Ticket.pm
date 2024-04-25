@@ -1845,6 +1845,7 @@ sub _ImportTicket {
                 DynamicFieldConfig => $DynamicFieldConfig,
                 ObjectID           => $DBTicket{TicketID},
                 Value              => $Ticket{$Attr},
+                ExternalSource     => 1,
                 UserID             => 1,
             );
         }
@@ -2059,6 +2060,7 @@ sub _ImportArticle {
                 DynamicFieldConfig => $DynamicFieldConfig,
                 ObjectID           => $ArticleID,
                 Value              => $Article{$Attr},
+                ExternalSource     => 1,
                 UserID             => 1,
             );
         }
