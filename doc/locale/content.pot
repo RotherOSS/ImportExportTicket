@@ -1,0 +1,154 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2019-2024 Rother OSS GmbH, https://otobo.de/
+# This file is distributed under the same license as the OTOBO Installation Guide package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: OTOBO Installation Guide rel-10.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-05-16 10:10+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../../content/index.rst:20
+msgid "Sacrifice to Sphinx"
+msgstr ""
+
+#: ../../content/index.rst:23
+msgid "Description"
+msgstr ""
+
+#: ../../content/index.rst:24
+msgid "Ticket backend for the ImportExport module."
+msgstr ""
+
+#: ../../content/index.rst:27
+msgid "System requirements"
+msgstr ""
+
+#: ../../content/index.rst:30
+msgid "Framework"
+msgstr ""
+
+#: ../../content/index.rst:31
+msgid "OTOBO 10.1.x"
+msgstr ""
+
+#: ../../content/index.rst:34
+msgid "Packages"
+msgstr ""
+
+#: ../../content/index.rst:35
+msgid "ImportExport 10.1.2"
+msgstr ""
+
+#: ../../content/index.rst:38
+msgid "Third-party software"
+msgstr ""
+
+#: ../../content/index.rst:39
+msgid "\\-"
+msgstr ""
+
+#: ../../content/index.rst:42
+msgid "Usage"
+msgstr ""
+
+#: ../../content/index.rst:43
+msgid "In the ImportExport section of the admin interface a new backend (Ticket) is available. General usage is the same as other ImportExport modules. Identifiers can be used for tickets and articles to potentially skip the article. Rules are as follows:"
+msgstr ""
+
+#: ../../content/index.rst:45
+msgid "TicketID or TicketNumber are required to be marked as identifier for ticket identification"
+msgstr ""
+
+#: ../../content/index.rst:46
+msgid "Article_ArticleID is required to be marked as identifier for article identification"
+msgstr ""
+
+#: ../../content/index.rst:47
+msgid "When using identification and the object is found in the system, tickets are just updated instead of created, articles are skipped"
+msgstr ""
+
+#: ../../content/index.rst:48
+msgid "Regardless of whether identification is used or not, if objects are created, TicketID and ArticleID will be generated newly by OTOBO, TicketNumber (if included) will be set to the one of the csv. The latter will lead to an import error if the TicketNumber already exists (no identification used), and can also be problematic if imported from a system with a different SystemID or TicketNumber generator - use with care."
+msgstr ""
+
+#: ../../content/index.rst:50
+msgid "When using the extended synchronization, TicketID as well as Article_ArticleID have to be provided."
+msgstr ""
+
+#: ../../content/index.rst:53
+msgid "Configuration Reference"
+msgstr ""
+
+#: ../../content/index.rst:56
+msgid "Core::ImportExport::ObjectBackend::ModuleRegistration"
+msgstr ""
+
+#: ../../content/index.rst:59
+msgid "ImportExport::ObjectBackendRegistration###Ticket"
+msgstr ""
+
+#: ../../content/index.rst:60
+msgid "Object backend module registration for the import/export module."
+msgstr ""
+
+#: ../../content/index.rst:63
+msgid "Core::ImportExport::ObjectBackend::Ticket"
+msgstr ""
+
+#: ../../content/index.rst:66
+msgid "ImportExport::Ticket::SynchronizeWithForeignDB"
+msgstr ""
+
+#: ../../content/index.rst:67
+msgid "If activated additional data such as the history and links will be read from a foreign DB containing the exported tickets and added to the imported tickets on this system. This is only available for created, not for updated tickets."
+msgstr ""
+
+#: ../../content/index.rst:70
+msgid "Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps"
+msgstr ""
+
+#: ../../content/index.rst:73
+msgid "ImportExport::Ticket::ImportValueMap###001-Custom"
+msgstr ""
+
+#: ../../content/index.rst:74
+msgid "Value map. Define a key and a value map from import file to OTOBO."
+msgstr ""
+
+#: ../../content/index.rst:77
+msgid "About"
+msgstr ""
+
+#: ../../content/index.rst:80
+msgid "Contact"
+msgstr ""
+
+#: ../../content/index.rst:81
+msgid "Rother OSS GmbH"
+msgstr ""
+
+#: ../../content/index.rst:82
+msgid "Email: hello@otobo.de"
+msgstr ""
+
+#: ../../content/index.rst:83
+msgid "Web: https://otobo.de"
+msgstr ""
+
+#: ../../content/index.rst:86
+msgid "Version"
+msgstr ""
+
+#: ../../content/index.rst:87
+msgid "Author: |doc-vendor| / Version: |doc-version| / Date of release: |doc-datestamp|"
+msgstr ""
+
