@@ -28,7 +28,7 @@ use utf8;
 
 # OTOBO modules
 use Kernel::Language              qw(Translatable);
-use Kernel::System::VariableCheck qw(IsHashRefWithData);
+use Kernel::System::VariableCheck qw(IsArrayRefWithData IsHashRefWithData);
 
 use Encode;
 use MIME::Base64 qw(encode_base64 decode_base64);
