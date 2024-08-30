@@ -2,7 +2,7 @@
 # OTOBO is a web-based ticketing system for service organisations.
 # --
 # Copyright (C) 2001-2020 OTRS AG, https://otrs.com/
-# Copyright (C) 2019-2024 Rother OSS GmbH, https://otobo.de/
+# Copyright (C) 2019-2024 Rother OSS GmbH, https://otobo.io/
 # --
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,15 +23,14 @@ use namespace::autoclean;
 use utf8;
 
 # core modules
+use Encode;
+use MIME::Base64 qw(encode_base64 decode_base64);
 
 # CPAN modules
 
 # OTOBO modules
 use Kernel::Language              qw(Translatable);
 use Kernel::System::VariableCheck qw(IsArrayRefWithData IsHashRefWithData);
-
-use Encode;
-use MIME::Base64 qw(encode_base64 decode_base64);
 
 our @ObjectDependencies = (
     'Kernel::Config',
@@ -55,7 +54,7 @@ our @ObjectDependencies = (
 
 =head1 NAME
 
-Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for Tickets
+Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for tickets
 
 =head1 DESCRIPTION
 
@@ -70,21 +69,47 @@ create an object
     use Kernel::System::ObjectManager;
 
     local $Kernel::OM = Kernel::System::ObjectManager->new();
-    my $BackendObject = $Kernel::OM->Get('Kernel::System::ImportExport::ObjectBackend::ITSMConfigItem');
+    my $BackendObject = $Kernel::OM->Get('Kernel::System::ImportExport::ObjectBackend::Ticket');
 
 =cut
 
 sub new {
     my ( $Type, %Param ) = @_;
 
+    # Changing the config
+    my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+
+    # Fiddling with SysConfig in the constructor is a bit hackish.
+    # It should be fine as the ImportExport object is only used in console commands
+    # and in a single frontend module. The changed config object in the frontend module
+    # is fine as the config object is recreated for each request.
+    $ConfigObject->Set(
+        Key   => 'SendmailModule',
+        Value => 'Kernel::System::Email::DoNotSendEmail',
+    );
+    $ConfigObject->Set(
+        Key   => 'CheckEmailAddresses',
+        Value => 0,
+    );
+
+    # turn off some event handlers
+    $ConfigObject->Set(
+        Key   => 'Ticket::EventModulePost###950-TicketAppointments',
+        Value => undef,
+    );
+    $ConfigObject->Set(
+        Key   => 'Ticket::EventModulePost###8000-GenericInterface',
+        Value => undef,
+    );
+
     # allocate new hash for object
-    my $Self = {
+    return bless {
         TicketIDRelation       => {},
         TicketNumberIDRelation => {},
-    };
-    bless( $Self, $Type );
-
-    return $Self;
+        AllFoundTicketIDs      => undef,    # will be initialized in first call to ExportDataGet()
+        LastHandledIndex       => -1,       # used for chunking
+        ChunkingFinished       =>  0,       # indicate that chunking is finished
+    }, $Type;
 }
 
 =head2 ObjectAttributesGet()
@@ -417,7 +442,8 @@ sub MappingObjectAttributesGet {
     return [] unless $ObjectData;
     return [] unless ref $ObjectData eq 'HASH';
 
-    my @ElementList = map { { Key => $_, Value => $_ } }
+    my @ElementList =
+        map { { Key => $_, Value => $_ } }
         qw( TicketID TicketNumber Title Type TypeID Queue QueueID Service ServiceID SLA
         SLAID State StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock
         LockID Responsible ResponsibleID ArchiveFlag Created );
@@ -708,6 +734,11 @@ get export data as a reference to an array for array references, that is a C<2D-
         UserID     => 1,
     );
 
+When the parameter C<ChunkSize> is passed then chunked export mode is assumed.
+On the first invocation the complete search result list is retrieved
+and stored in the instance. Then the detailed data for first chunk is returned.
+Each subsequent invocation only gets the detailed data for the next chunk.
+
 =cut
 
 sub ExportDataGet {
@@ -783,30 +814,36 @@ sub ExportDataGet {
         push @MappingObjectList, $MappingObjectData;
     }
 
-    # get search data
-    my $SearchData = $ImportExportObject->SearchDataGet(
-        TemplateID => $Param{TemplateID},
-        UserID     => $Param{UserID},
-    );
+    # List of IDs for tickets that are to be exported.
+    # In chunked mode this is only chunk. In non-chunked mode these are all relevant IDs.
+    my @TicketIDs;
+    {
+        # Search all Ticket_IDs.
+        # When in chunked mode then get the complete list in the first invocation and store it as instance data.
+        # For simplicities sake assume that the template ID does not change in subsequent calls.
+        my %TicketSearchParam = (
+            TemplateID => $Param{TemplateID},
+            UserID     => $Param{UserID},
+        );
+        if ( $Param{ChunkSize} >= 1 ) {
 
-    my %IsSelection = map { $_ => 1 } qw( TypeIDs QueueIDs ServiceIDs SLAIDs StateIDs PriorityIDs CustomerID );
+            # search only on the first invocation
+            $Self->{AllFoundTicketIDs} //= [ $Self->_TicketSearch(%TicketSearchParam) ];
 
-    my %SearchDataPrepared;
-    KEY:
-    for my $Key ( keys $SearchData->%* ) {
-        next KEY if !defined $SearchData->{$Key};
-
-        $SearchDataPrepared{$Key} = $IsSelection{$Key} ? [ split /#####/, $SearchData->{$Key} ] : $SearchData->{$Key};
+            # do the chunking
+            my $NewLastHandledIndex = $Self->{LastHandledIndex} + $Param{ChunkSize};
+            my $EndIndex            = $#{ $Self->{AllFoundTicketIDs} };
+            if ( $NewLastHandledIndex >= $EndIndex ) {
+                $Self->{ChunkingFinished} = 1;
+                $NewLastHandledIndex = $EndIndex;
+            }
+            @TicketIDs = @{ $Self->{AllFoundTicketIDs} }[ $Self->{LastHandledIndex} + 1 .. $NewLastHandledIndex ];
+            $Self->{LastHandledIndex} = $NewLastHandledIndex;
+        }
+        else {
+            @TicketIDs = $Self->_TicketSearch(%TicketSearchParam);
+        }
     }
-
-    my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
-
-    # Search all Ticket_IDs
-    my @TicketIDs = sort { $a <=> $b } $TicketObject->TicketSearch(
-        %SearchDataPrepared,
-        Result => 'ARRAY',
-        UserID => 1,
-    );
 
     my $ArticleObject = $Kernel::OM->Get('Kernel::System::Ticket::Article');
 
@@ -852,10 +889,10 @@ sub ExportDataGet {
             $TicketMapping[$i] = $MappingObjectList[$i];
             $TicketMappingLast = $i;
         }
-
     }
 
     # export tickets ...
+    my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
     for my $TicketID (@TicketIDs) {
 
         %TicketData = $TicketObject->TicketGet(
@@ -968,8 +1005,7 @@ imports a single entity of the import data. The C<TemplateID> points to the defi
 of the current import. C<ImportDataRow> holds the data. C<Counter> is only used in
 error messages, for indicating which item was not imported successfully.
 
-The decision what constitute an empty value is a bit hairy.
-Here are the rules.
+The decision what constitute an empty value is a bit hairy. Here are the rules.
 Fields that are not even mentioned in the Import definition are empty. These are the 'not defined' fields.
 Empty strings and undefined values constitute empty fields.
 Fields with with only one or more whitespace characters are not empty.
@@ -1062,7 +1098,7 @@ sub ImportDataSave {
     # create the mapping object list
     # TODO: why is this called for every row of the import file ?
     my @MappingObjectList;
-    for my $MappingID ( @{$MappingList} ) {
+    for my $MappingID ( $MappingList->@* ) {
 
         # get mapping object data
         my $MappingObjectData = $ImportExportObject->MappingObjectDataGet(
@@ -1140,7 +1176,6 @@ sub ImportDataSave {
             $Article{Attachments} = [ @{ $Param{ImportDataRow} }[ $i .. $#{ $Param{ImportDataRow} } ] ];
         }
     }
-
     else {
         MAPPINGOBJECTDATA:
         for my $i ( 0 .. $#MappingObjectList ) {
@@ -1160,7 +1195,7 @@ sub ImportDataSave {
                 $Ticket{ $MappingObjectData->{Key} } = $Value;
             }
 
-            next MAPPINGOBJECTDATA if !$MappingObjectData->{Identifier};
+            next MAPPINGOBJECTDATA unless $MappingObjectData->{Identifier};
 
             if ( !$Value ) {
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
@@ -1169,6 +1204,7 @@ sub ImportDataSave {
                         "Can't import entity $Param{Counter}: "
                         . "'$MappingObjectData->{Key}' can not be empty or 0 when used as identifier.",
                 );
+
                 return;
             }
 
@@ -1182,6 +1218,7 @@ sub ImportDataSave {
                         "Can't import entity $Param{Counter}: "
                         . "Currently only Article_ArticleID is a valid identifier for articles (not '$MappingObjectData->{Key}').",
                 );
+
                 return;
             }
             else {
@@ -1243,13 +1280,53 @@ sub ImportDataSave {
     return ( $Self->{LastTicketID}, $Status );
 }
 
+=head1 Internal Subroutines
+
+=head2 _TicketSearch
+
+just a wrapper around C<Kernel::System::Ticket::TicketSearch()>
+
+=cut
+
+sub _TicketSearch {
+    my ( $Self, %Param ) = @_;
+
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
+    my $TicketObject       = $Kernel::OM->Get('Kernel::System::Ticket');
+
+    # get search data
+    my $SearchData = $ImportExportObject->SearchDataGet(
+        TemplateID => $Param{TemplateID},
+        UserID     => $Param{UserID},
+    );
+
+    my %IsSelection = map { $_ => 1 } qw( TypeIDs QueueIDs ServiceIDs SLAIDs StateIDs PriorityIDs CustomerID );
+
+    my %SearchDataPrepared;
+    KEY:
+    for my $Key ( keys %{$SearchData} ) {
+        next KEY unless defined $SearchData->{$Key};
+
+        $SearchDataPrepared{$Key} = $IsSelection{$Key} ? [ split /#####/, $SearchData->{$Key} ] : $SearchData->{$Key};
+    }
+
+    # make sure that sort is not called in scalar context
+    my @SortedTicketIDs = sort { $a <=> $b } $TicketObject->TicketSearch(
+        %SearchDataPrepared,
+        Result => 'ARRAY',
+        UserID => 1,
+    );
+
+    return @SortedTicketIDs;
+}
+
 sub _ImportTicket {
     my ( $Self, %Param ) = @_;
 
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
 
     my %Ticket = $Param{Ticket}->%*;
-    my %DBTicket;
+    my %DBTicket;    # Ticket as retrieved from the database
     my $Status = 'Skipped';
 
     if ( $Param{Identifier} ) {
@@ -1340,12 +1417,13 @@ sub _ImportTicket {
         }
     }
 
-    # verify whether we really got the right ticket
+    # verify whether we really got the right ticket, all identifiers must match
     if (%DBTicket) {
         ATTR:
         for my $Attr ( keys $Param{Identifier}->%* ) {
             if ( $DBTicket{$Attr} ne $Ticket{$Attr} ) {
                 %DBTicket = ();
+
                 last ATTR;
             }
         }
@@ -1391,9 +1469,10 @@ sub _ImportTicket {
         }
 
         # title
-        $Ticket{Title} ||= $Ticket{Title} eq '0' ? '0' :
-            $SkipEmpty                  ? $DBTicket{Title} :
-            $Param{ObjectData}{Subject} ? $Param{ObjectData}{Subject} : '';
+        $Ticket{Title} ||=
+            ( defined $Ticket{Title} && $Ticket{Title} eq '0' ) ? '0' :
+            $SkipEmpty                                          ? $DBTicket{Title} :
+            $Param{ObjectData}{Subject}                         ? $Param{ObjectData}{Subject} : '';
 
         if ( $Ticket{Title} ne $DBTicket{Title} ) {
             $Status = 'Updated';
@@ -1664,7 +1743,7 @@ sub _ImportTicket {
         }
     }
 
-    # create a new ticket
+    # A new ticket will be created. Collect the input for TicketCreate in %DBTicket.
     else {
         $Status = 'Created';
 
@@ -1754,6 +1833,12 @@ sub _ImportTicket {
         # archive flag
         $DBTicket{ArchiveFlag} = $Ticket{ArchiveFlag} || $Param{ObjectData}{ArchiveFlag};
 
+        # Handle pending transaction events of the previously created ticket
+        # before creating a new ticket.
+        $TicketObject->EventHandlerTransaction;
+
+        # Create a new ticket. The transaction events generated here will be handled
+        # before the next ticket creation or during global destruction.
         $DBTicket{TicketID} = $TicketObject->TicketCreate(
             %DBTicket,
             TN     => $Ticket{TicketNumber} // '',
@@ -1763,7 +1848,7 @@ sub _ImportTicket {
         return $Self->_ImportError(
             %Param,
             Message => 'Could not create new ticket',
-        ) if !$DBTicket{TicketID};
+        ) unless $DBTicket{TicketID};
 
         $DBTicket{TicketNumber} = $TicketObject->TicketNumberLookup(
             TicketID => $DBTicket{TicketID},
@@ -1772,12 +1857,13 @@ sub _ImportTicket {
         if ( $Ticket{Created} ) {
             $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
 
-            return if !$Self->{DBObject}->Do(
+            return unless $Self->{DBObject}->Do(
                 SQL  => "UPDATE ticket SET create_time = ? WHERE id = ?",
                 Bind => [ \$Ticket{Created}, \$DBTicket{TicketID} ],
             );
         }
 
+        # Fetch additional data from the source installation if configured.
         my $SyncDBConfig = $ConfigObject->Get('ImportExport::Ticket::SynchronizeWithForeignDB');
         if ($SyncDBConfig) {
             my $Success = $Self->_SynchronizeExtendedDBEntries(
@@ -1789,7 +1875,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not synchronize extended DB entries for ticket $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
     }
 
@@ -1800,15 +1886,13 @@ sub _ImportTicket {
     # dynamic fields
     DYNAMICFIELD:
     for my $Attr ( keys %Ticket ) {
-        my $DynamicFieldConfig;
-        if ( $Attr =~ /^DynamicField_(.+)$/ ) {
-            $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
-                Name => $1,
-            );
-        }
-        else {
-            next DYNAMICFIELD;
-        }
+
+        # only handle dynamic fields
+        next DYNAMICFIELD unless $Attr =~ m/^DynamicField_(.+)$/;
+
+        my $DynamicFieldConfig = $DynamicFieldObject->DynamicFieldGet(
+            Name => $1,
+        );
 
         # get the current value
         my $DBValue = $DynamicFieldBackendObject->ValueGet(
@@ -1822,7 +1906,7 @@ sub _ImportTicket {
             $Ticket{$Attr} = $Ticket{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( /###/, $Ticket{$Attr} ) ] : [];
         }
 
-        next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
+        next DYNAMICFIELD unless $DynamicFieldBackendObject->ValueIsDifferent(
             DynamicFieldConfig => $DynamicFieldConfig,
             Value1             => $Ticket{$Attr},
             Value2             => $DBValue,
@@ -1853,7 +1937,7 @@ sub _ImportTicket {
         return $Self->_ImportError(
             %Param,
             Message => "Could not update $Attr to '$Ticket{$Attr}' for TicketID $DBTicket{TicketID}",
-        ) if !$Success;
+        ) unless $Success;
     }
 
     if ( $Param{Identifier}{TicketID} || $Param{ObjectData}{IncludeArticles} ) {
@@ -1862,6 +1946,8 @@ sub _ImportTicket {
     if ( $Param{Identifier}{TicketNumber} ) {
         $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } = $DBTicket{TicketID};
     }
+
+    # remember the ticket ID so that articles can be attached to it
     $Self->{LastTicketID} = $DBTicket{TicketID};
 
     return $Status;
@@ -1898,7 +1984,7 @@ sub _ImportArticle {
     return $Self->_ImportError(
         %Param,
         Message => "'$ChannelName' is (currently) not a supported ArticleBackend",
-    ) if !$ValidImportChannel{$ChannelName};
+    ) unless $ValidImportChannel{$ChannelName};
 
     my $ConfigObject         = $Kernel::OM->Get('Kernel::Config');
     my $ArticleBackendObject = $ArticleObject->BackendForChannel( ChannelName => $ChannelName );

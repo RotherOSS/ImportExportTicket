@@ -10,5 +10,10 @@
     <Filelist>
         <File Permission="660" Location="Kernel/Config/Files/XML/ImportExportTicket.xml" />
         <File Permission="660" Location="Kernel/System/ImportExport/ObjectBackend/Ticket.pm" />
+        <File Permission="660" Location="Kernel/System/Console/Command/Admin/ImportExport/Export.pm" />
+        <File Permission="660" Location="Kernel/System/Console/Command/Admin/ImportExport/Import.pm" />
+        <File Permission="660" Location="Custom/Kernel/System/ImportExport.pm" />
+        <File Permission="660" Location="scripts/test/Console/Command/Admin/ImportExport/Export.t" />
+        <File Permission="660" Location="scripts/test/Console/Command/Admin/ImportExport/Import.t" />
     </Filelist>
 </otobo_package>
