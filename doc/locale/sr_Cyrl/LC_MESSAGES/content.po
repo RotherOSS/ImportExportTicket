@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OTOBO Installation Guide rel-11.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-16 10:07+0200\n"
+"POT-Creation-Date: 2024-08-31 05:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,73 +18,73 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.4.0\n"
 
-#: ../../content/index.rst:16
+#: ../../content/index.rst:20
 msgid "Sacrifice to Sphinx"
 msgstr ""
 
-#: ../../content/index.rst:19
+#: ../../content/index.rst:23
 msgid "Description"
 msgstr ""
 
-#: ../../content/index.rst:20
+#: ../../content/index.rst:24
 msgid "Ticket backend for the ImportExport module."
 msgstr ""
 
-#: ../../content/index.rst:23
+#: ../../content/index.rst:27
 msgid "System requirements"
 msgstr ""
 
-#: ../../content/index.rst:26
+#: ../../content/index.rst:30
 msgid "Framework"
 msgstr ""
 
-#: ../../content/index.rst:27
+#: ../../content/index.rst:31
 msgid "OTOBO 11.0.x"
 msgstr ""
 
-#: ../../content/index.rst:30
+#: ../../content/index.rst:34
 msgid "Packages"
 msgstr ""
 
-#: ../../content/index.rst:33
+#: ../../content/index.rst:37
 msgid "Third-party software"
 msgstr ""
 
-#: ../../content/index.rst:34
+#: ../../content/index.rst:38
 msgid "\\-"
 msgstr ""
 
-#: ../../content/index.rst:37
+#: ../../content/index.rst:41
 msgid "Usage"
 msgstr ""
 
-#: ../../content/index.rst:38
+#: ../../content/index.rst:42
 msgid ""
 "In the ImportExport section of the admin interface a new backend (Ticket)"
-" is available. General usage is the same as other ImportExport modules. "
+" is available. General usage is the same as other ImportExport backends. "
 "Identifiers can be used for tickets and articles to potentially skip the "
 "article. Rules are as follows:"
 msgstr ""
 
-#: ../../content/index.rst:40
+#: ../../content/index.rst:44
 msgid ""
 "TicketID or TicketNumber are required to be marked as identifier for "
 "ticket identification"
 msgstr ""
 
-#: ../../content/index.rst:41
+#: ../../content/index.rst:45
 msgid ""
 "Article_ArticleID is required to be marked as identifier for article "
 "identification"
 msgstr ""
 
-#: ../../content/index.rst:42
+#: ../../content/index.rst:46
 msgid ""
 "When using identification and the object is found in the system, tickets "
 "are just updated instead of created, articles are skipped"
 msgstr ""
 
-#: ../../content/index.rst:43
+#: ../../content/index.rst:47
 msgid ""
 "Regardless of whether identification is used or not, if objects are "
 "created, TicketID and ArticleID will be generated newly by OTOBO, "
@@ -95,37 +95,53 @@ msgid ""
 "care."
 msgstr ""
 
-#: ../../content/index.rst:45
+#: ../../content/index.rst:49
 msgid ""
-"When using the extended synchronization, TicketID as well as "
-"Article_ArticleID have to be provided."
+"The console commands Admin::ImportExport::Export and "
+"Admin::ImportExport::Import provide functionality on the command line. "
+"Using the command line also allow chunked export and import."
 msgstr ""
 
-#: ../../content/index.rst:48
-msgid "Configuration Reference"
-msgstr ""
-
-#: ../../content/index.rst:51
-msgid "Core::ImportExport::ObjectBackend::ModuleRegistration"
-msgstr ""
-
-#: ../../content/index.rst:54
-msgid "ImportExport::ObjectBackendRegistration###Ticket"
+#: ../../content/index.rst:52
+msgid ""
+"In order to achieve better performance, some SysConfig setting are "
+"temporarily altered during Export and Import. This means that "
+"ElasticSearch has to be reindexed after an import."
 msgstr ""
 
 #: ../../content/index.rst:55
-msgid "Object backend module registration for the import/export module."
+msgid ""
+"There is an import feature called extended synchronisation. This feature "
+"can be activated via the SysConfig. When using the extended "
+"synchronization, TicketID as well as Article_ArticleID have to be "
+"provided."
 msgstr ""
 
-#: ../../content/index.rst:58
-msgid "Core::ImportExport::ObjectBackend::Ticket"
-msgstr ""
-
-#: ../../content/index.rst:61
-msgid "ImportExport::Ticket::SynchronizeWithForeignDB"
+#: ../../content/index.rst:59
+msgid "Configuration Reference"
 msgstr ""
 
 #: ../../content/index.rst:62
+msgid "Core::ImportExport::ObjectBackend::ModuleRegistration"
+msgstr ""
+
+#: ../../content/index.rst:65
+msgid "ImportExport::ObjectBackendRegistration###Ticket"
+msgstr ""
+
+#: ../../content/index.rst:66
+msgid "Object backend module registration for the import/export module."
+msgstr ""
+
+#: ../../content/index.rst:69
+msgid "Core::ImportExport::ObjectBackend::Ticket"
+msgstr ""
+
+#: ../../content/index.rst:72
+msgid "ImportExport::Ticket::SynchronizeWithForeignDB"
+msgstr ""
+
+#: ../../content/index.rst:73
 msgid ""
 "If activated additional data such as the history and links will be read "
 "from a foreign DB containing the exported tickets and added to the "
@@ -133,45 +149,67 @@ msgid ""
 "for updated tickets."
 msgstr ""
 
-#: ../../content/index.rst:65
+#: ../../content/index.rst:76
 msgid "Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps"
 msgstr ""
 
-#: ../../content/index.rst:68
+#: ../../content/index.rst:79
 msgid "ImportExport::Ticket::ImportValueMap###001-Custom"
 msgstr ""
 
-#: ../../content/index.rst:69
+#: ../../content/index.rst:80
 msgid "Value map. Define a key and a value map from import file to OTOBO."
 msgstr ""
 
-#: ../../content/index.rst:72
+#: ../../content/index.rst:83
 msgid "About"
 msgstr ""
 
-#: ../../content/index.rst:75
+#: ../../content/index.rst:86
 msgid "Contact"
 msgstr ""
 
-#: ../../content/index.rst:76
+#: ../../content/index.rst:87
 msgid "Rother OSS GmbH"
 msgstr ""
 
-#: ../../content/index.rst:77
-msgid "Email: hello@otobo.de"
+#: ../../content/index.rst:88
+msgid "Email: hello@otobo.io"
 msgstr ""
 
-#: ../../content/index.rst:78
-msgid "Web: https://otobo.de"
+#: ../../content/index.rst:89
+msgid "Web: https://otobo.io"
 msgstr ""
 
-#: ../../content/index.rst:81
+#: ../../content/index.rst:92
 msgid "Version"
 msgstr ""
 
-#: ../../content/index.rst:82
+#: ../../content/index.rst:93
 msgid ""
 "Author: |doc-vendor| / Version: |doc-version| / Date of release: |doc-"
 "datestamp|"
 msgstr ""
+
+#~ msgid ""
+#~ "In the ImportExport section of the "
+#~ "admin interface a new backend (Ticket)"
+#~ " is available. General usage is the"
+#~ " same as other ImportExport modules. "
+#~ "Identifiers can be used for tickets "
+#~ "and articles to potentially skip the "
+#~ "article. Rules are as follows:"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "When using the extended synchronization, "
+#~ "TicketID as well as Article_ArticleID "
+#~ "have to be provided."
+#~ msgstr ""
+
+#~ msgid "Email: hello@otobo.de"
+#~ msgstr ""
+
+#~ msgid "Web: https://otobo.de"
+#~ msgstr ""
 
