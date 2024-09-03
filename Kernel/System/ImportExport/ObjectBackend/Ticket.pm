@@ -1409,7 +1409,7 @@ sub _ImportTicket {
             # TODO: how is CreatedNumbers provided with content ?
             elsif ( !$Self->{CreatedNumbers}{ $Ticket{TicketNumber} } ) {
                 $DBTicketID = $TicketObject->TicketIDLookup(
-                    Tn => $Ticket{TicketNumber},
+                    TicketNumber => $Ticket{TicketNumber},
                 );
             }
         }
