@@ -1129,10 +1129,15 @@ sub ImportDataSave {
 
     my $ConfigObject  = $Kernel::OM->Get('Kernel::Config');
     my $MappingConfig = $ConfigObject->Get('ImportExport::Ticket::ImportValueMap') // {};
-    my %ValueMap      = map { $_->{Key} => $_->{Map} } values $MappingConfig->%*;
+    my %ValueMap =
+        map { $_->{Key} => $_->{Map} }
+        values $MappingConfig->%*;
 
     # handle a separate article
+    # TODO: what about "0" ?
     if ( $ObjectData->{IncludeArticles} && $ObjectData->{ArticleSeparateLines} && !$Param{ImportDataRow}[0] ) {
+
+        # handling an article an a separate line
         my $i = 1;
         MAPPINGOBJECTDATA:
         for my $MappingObjectData (@MappingObjectList) {
@@ -1177,6 +1182,8 @@ sub ImportDataSave {
         }
     }
     else {
+
+        # handling a ticket line
         MAPPINGOBJECTDATA:
         for my $i ( 0 .. $#MappingObjectList ) {
 
@@ -1186,8 +1193,9 @@ sub ImportDataSave {
             $Value = defined $Value && $ValueMap{ $MappingObjectData->{Key} } && defined $ValueMap{ $MappingObjectData->{Key} }{$Value}
                 ? $ValueMap{ $MappingObjectData->{Key} }{$Value} : $Value;
 
-            if ( $MappingObjectData->{Key} =~ /^Article_(.+)$/ ) {
-                next MAPPINGOBJECTDATA if $ObjectData->{ArticleSeparateLines} || !$ObjectData->{IncludeArticles};
+            if ( $MappingObjectData->{Key} =~ m/^Article_(.+)$/ ) {
+                next MAPPINGOBJECTDATA if $ObjectData->{ArticleSeparateLines};
+                next MAPPINGOBJECTDATA unless $ObjectData->{IncludeArticles};
 
                 $Article{$1} = $Value;
             }
@@ -1195,6 +1203,7 @@ sub ImportDataSave {
                 $Ticket{ $MappingObjectData->{Key} } = $Value;
             }
 
+            # identifiers are usually TicketID or TicketNumber
             next MAPPINGOBJECTDATA unless $MappingObjectData->{Identifier};
 
             if ( !$Value ) {
@@ -1392,13 +1401,13 @@ sub _ImportTicket {
             }
 
             # exclude tickets which were created in this run and by chance got the current TicketNumber
+            # TODO: how is CreatedNumbers provided with content ?
             elsif ( !$Self->{CreatedNumbers}{ $Ticket{TicketNumber} } ) {
                 $DBTicketID = $TicketObject->TicketIDLookup(
                     Tn => $Ticket{TicketNumber},
                 );
             }
         }
-
         else {
             return $Self->_ImportError(
                 %Param,
@@ -1566,7 +1575,7 @@ sub _ImportTicket {
                 ) if !$Success;
             }
 
-            # sla
+            # SLA
             if ( !$Ticket{SLAID} && $Ticket{SLA} ) {
                 $Ticket{SLAID} = $Kernel::OM->Get('Kernel::System::SLA')->SLALookup(
                     SLA => $Ticket{SLA},
