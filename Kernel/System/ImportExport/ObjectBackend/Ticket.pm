@@ -1244,7 +1244,12 @@ sub ImportDataSave {
 
     my $Status = 'Skipped';
     $Self->{Error} = '';
-    if ( %Ticket && !exists $Self->{TicketIDRelation}{ $Ticket{TicketID} } ) {
+    if (
+        %Ticket
+        &&
+        ( !$Ticket{TicketID} || !exists $Self->{TicketIDRelation}{ $Ticket{TicketID} } )
+        )
+    {
         $Status = $Self->_ImportTicket(
             Ticket     => \%Ticket,
             Identifier => $Identifier{Ticket},
@@ -1950,7 +1955,11 @@ sub _ImportTicket {
     }
 
     if ( $Param{Identifier}{TicketID} || $Param{ObjectData}{IncludeArticles} ) {
-        $Self->{TicketIDRelation}{ $Ticket{TicketID} } = $DBTicket{TicketID};
+
+        # TODO: why the check on IncludeArticles
+        if ( $Ticket{TicketID} ) {
+            $Self->{TicketIDRelation}{ $Ticket{TicketID} } = $DBTicket{TicketID};
+        }
     }
     if ( $Param{Identifier}{TicketNumber} ) {
         $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } = $DBTicket{TicketID};
