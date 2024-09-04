@@ -650,10 +650,10 @@ sub SearchAttributesGet {
     );
 
     my %DateRestrictions = (
-        TicketCreateTimeOlderDate     => 'Ticket Create Time (before)',
-        TicketCreateTimeNewerDate     => 'Ticket Create Time (after)',
-        TicketLastChangeTimeOlderDate => 'Ticket Last Change Time (before)',
-        TicketLastChangeTimeNewerDate => 'Ticket Last Change Time (after)',
+        TicketCreateTimeOlderDate => 'Ticket Create Time (before)',
+        TicketCreateTimeNewerDate => 'Ticket Create Time (after)',
+        TicketChangeTimeOlderDate => 'Ticket Last Change Time (before)',
+        TicketChangeTimeNewerDate => 'Ticket Last Change Time (after)',
     );
 
     for my $Key ( keys %DateRestrictions ) {
