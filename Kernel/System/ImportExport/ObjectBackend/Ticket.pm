@@ -538,10 +538,13 @@ get the search object attributes of an object as array/hash reference
         UserID     => 1,
     );
 
+
 =cut
 
 sub SearchAttributesGet {
     my ( $Self, %Param ) = @_;
+
+    #  note that there is no search by owner or responsible
 
     # check needed stuff
     for my $Argument (qw(TemplateID UserID)) {
@@ -555,10 +558,9 @@ sub SearchAttributesGet {
         }
     }
 
-    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
-
-    # get object data
     # TODO: why is the ObjectData needed here?
+    # get object data
+    my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
     my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
