@@ -135,7 +135,6 @@ sub ObjectAttributesGet {
         return;
     }
 
-    my %QueueList = $Kernel::OM->Get('Kernel::System::Queue')->QueueList();
     my %StateList = $Kernel::OM->Get('Kernel::System::State')->StateList(
         UserID => 1,
     );
@@ -145,23 +144,27 @@ sub ObjectAttributesGet {
     my %LockList = $Kernel::OM->Get('Kernel::System::Lock')->LockList(
         UserID => 1,
     );
-    my %UserList = $Kernel::OM->Get('Kernel::System::User')->UserList();
-
-    my @Attributes = (
-        {
-            Key   => 'QueueID',
-            Name  => 'Default Queue',
-            Input => {
-                Type        => 'Selection',
-                Data        => \%QueueList,
-                Required    => 1,
-                Translation => 0,
-                Class       => 'Modernize',
-            },
-        },
-    );
+    my %UserList = $Kernel::OM->Get('Kernel::System::User')->UserList;
 
     my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+    my @Attributes;    # will be returned
+
+    # queue
+    {
+        my %QueueList = $Kernel::OM->Get('Kernel::System::Queue')->QueueList;
+        push @Attributes,
+            {
+                Key   => 'QueueID',
+                Name  => 'Default Queue',
+                Input => {
+                    Type        => 'Selection',
+                    Data        => \%QueueList,
+                    Required    => 1,
+                    Translation => 0,
+                    Class       => 'Modernize',
+                },
+            };
+    }
 
     if ( $ConfigObject->Get('Ticket::Type') ) {
         my %TypeList = $Kernel::OM->Get('Kernel::System::Type')->TypeList(
@@ -217,9 +220,7 @@ sub ObjectAttributesGet {
         };
     }
 
-    my %SenderType = map { $_ => $_ } qw(agent customer system);
-
-    push @Attributes, (
+    push @Attributes,
         {
             Key   => 'StateID',
             Name  => 'Default state',
@@ -252,19 +253,25 @@ sub ObjectAttributesGet {
                 Translation => 0,
                 Class       => 'Modernize',
             },
-        },
-        {
-            Key   => 'ResponsibleID',
-            Name  => 'Default responsible',
-            Input => {
-                Type         => 'Selection',
-                Data         => \%UserList,
-                Required     => 0,
-                PossibleNone => 1,
-                Translation  => 0,
-                Class        => 'Modernize',
-            },
-        },
+        };
+
+    if ( $ConfigObject->Get('Ticket::Responsible') ) {
+        push @Attributes,
+            {
+                Key   => 'ResponsibleID',
+                Name  => 'Default responsible',
+                Input => {
+                    Type         => 'Selection',
+                    Data         => \%UserList,
+                    Required     => 0,
+                    PossibleNone => 1,
+                    Translation  => 0,
+                    Class        => 'Modernize',
+                },
+            };
+    }
+
+    push @Attributes,
         {
             Key   => 'LockID',
             Name  => 'Default lock',
@@ -353,8 +360,11 @@ sub ObjectAttributesGet {
             Key   => 'SenderType',
             Name  => 'Default sender type',
             Input => {
-                Type     => 'Selection',
-                Data     => \%SenderType,
+                Type => 'Selection',
+                Data => {
+                    agent    => 'agent',
+                    customer => 'customer',
+                },
                 Required => 1,
                 Class    => 'Modernize',
             },
@@ -386,8 +396,7 @@ sub ObjectAttributesGet {
             Input => {
                 Type => 'Checkbox',
             },
-        },
-    );
+        };
 
     return \@Attributes;
 }
@@ -442,20 +451,36 @@ sub MappingObjectAttributesGet {
     return [] unless $ObjectData;
     return [] unless ref $ObjectData eq 'HASH';
 
+    # the possible mappings depend on the activated feature set
+    my $ConfigObject        = $Kernel::OM->Get('Kernel::Config');
+    my @TypeElements        = $ConfigObject->Get('Ticket::Type')        ? qw( Type TypeID )                 : ();
+    my @ServiceElements     = $ConfigObject->Get('Ticket::Service')     ? qw( Service ServiceID SLA SLAID ) : ();
+    my @ResponsibleElements = $ConfigObject->Get('Ticket::Responsible') ? qw( Responsible ResponsibleID )   : ();
     my @ElementList =
         map { { Key => $_, Value => $_ } }
-        qw( TicketID TicketNumber Title Type TypeID Queue QueueID Service ServiceID SLA
-        SLAID State StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock
-        LockID Responsible ResponsibleID ArchiveFlag Created );
+        (
+            qw( TicketID TicketNumber Title ),
+            @TypeElements,
+            qw( Queue QueueID ),
+            @ServiceElements,
+            qw( StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock LockID ),
+            @ResponsibleElements,
+            qw( ArchiveFlag Created )
+        );
 
     my $DynamicFieldObject = $Kernel::OM->Get('Kernel::System::DynamicField');
 
     # columns for dynamic fields
-    my $DynFieldList = $DynamicFieldObject->DynamicFieldList(
-        ObjectType => 'Ticket',
-        ResultType => 'HASH',
-    );
-    push @ElementList, map { { Key => "DynamicField_$_", Value => "DynamicField_$_" } } sort values %{$DynFieldList};
+    {
+        my $DynFieldList = $DynamicFieldObject->DynamicFieldList(
+            ObjectType => 'Ticket',
+            ResultType => 'HASH',
+        );
+        push @ElementList,
+            map { { Key => "DynamicField_$_", Value => "DynamicField_$_" } }
+            sort
+            values $DynFieldList->%*;
+    }
 
     if ( $ObjectData->{IncludeArticles} ) {
         if ( $ObjectData->{ArticleSeparateLines} ) {
@@ -475,7 +500,10 @@ sub MappingObjectAttributesGet {
             ObjectType => 'Article',
             ResultType => 'HASH',
         );
-        push @ElementList, map { { Key => "Article_DynamicField_$_", Value => "Article_DynamicField_$_" } } values %{$DynFieldList};
+        push @ElementList,
+            map { { Key => "Article_DynamicField_$_", Value => "Article_DynamicField_$_" } }
+            sort
+            values $DynFieldList->%*;
     }
 
     return [
@@ -530,6 +558,7 @@ sub SearchAttributesGet {
     my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
 
     # get object data
+    # TODO: why is the ObjectData needed here?
     my $ObjectData = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
@@ -1524,29 +1553,33 @@ sub _ImportTicket {
             ) unless $Success;
         }
 
-        # type
-        if ( !$Ticket{TypeID} && $Ticket{Type} ) {
-            $Ticket{TypeID} = $Kernel::OM->Get('Kernel::System::Type')->TypeLookup(
-                Type => $Ticket{Type},
-            );
-        }
-        $Ticket{TypeID} ||= $SkipEmpty ? $DBTicket{TypeID} : $Param{ObjectData}{TypeID};
-
-        if ( $Ticket{TypeID} ne $DBTicket{TypeID} ) {
-            $Status = 'Updated';
-            my $Success = $TicketObject->TicketTypeSet(
-                TypeID   => $Ticket{TypeID},
-                TicketID => $DBTicket{TicketID},
-                UserID   => 1,
-            );
-
-            return $Self->_ImportError(
-                %Param,
-                Message => "Could not update Type for TicketID $DBTicket{TicketID}",
-            ) unless $Success;
-        }
-
+        # need for checking the activated features: Ticket::Type, Ticket::Responsible, Ticket::Service
         my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+
+        # type
+        if ( $ConfigObject->Get('Ticket::Type') ) {
+            if ( !$Ticket{TypeID} && $Ticket{Type} ) {
+                $Ticket{TypeID} = $Kernel::OM->Get('Kernel::System::Type')->TypeLookup(
+                    Type => $Ticket{Type},
+                );
+            }
+            $Ticket{TypeID} ||= $SkipEmpty ? $DBTicket{TypeID} : $Param{ObjectData}{TypeID};
+
+            if ( $Ticket{TypeID} ne $DBTicket{TypeID} ) {
+                $Status = 'Updated';
+                my $Success = $TicketObject->TicketTypeSet(
+                    TypeID   => $Ticket{TypeID},
+                    TicketID => $DBTicket{TicketID},
+                    UserID   => 1,
+                );
+
+                return $Self->_ImportError(
+                    %Param,
+                    Message => "Could not update Type for TicketID $DBTicket{TicketID}",
+                ) unless $Success;
+            }
+        }
+
         if ( $ConfigObject->Get('Ticket::Service') ) {
 
             # service
@@ -1666,33 +1699,35 @@ sub _ImportTicket {
         }
 
         # responsible
-        if ( !$Ticket{ResponsibleID} && $Ticket{Responsible} ) {
-            $Ticket{ResponsibleID} = $Kernel::OM->Get('Kernel::System::User')->UserLookup(
-                UserLogin => $Ticket{Responsible},
-            );
-        }
-        $Ticket{ResponsibleID} ||= $SkipEmpty ? $DBTicket{ResponsibleID} : $Param{ObjectData}{ResponsibleID};
+        if ( $ConfigObject->Get('Ticket::Responsible') ) {
+            if ( !$Ticket{ResponsibleID} && $Ticket{Responsible} ) {
+                $Ticket{ResponsibleID} = $Kernel::OM->Get('Kernel::System::User')->UserLookup(
+                    UserLogin => $Ticket{Responsible},
+                );
+            }
+            $Ticket{ResponsibleID} ||= $SkipEmpty ? $DBTicket{ResponsibleID} : $Param{ObjectData}{ResponsibleID};
 
-        if ( !$Ticket{ResponsibleID} && $DBTicket{ResponsibleID} ) {
-            $Kernel::OM->Get('Kernel::System::Log')->Log(
-                Priority => 'notice',
-                Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
-                    . "Responsibles can not be emptied - not a real chronological update; ignoring this, and keeping the Responsible.",
-            );
-        }
+            if ( !$Ticket{ResponsibleID} && $DBTicket{ResponsibleID} ) {
+                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                    Priority => 'notice',
+                    Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
+                        . "Responsibles can not be emptied - not a real chronological update; ignoring this, and keeping the Responsible.",
+                );
+            }
 
-        if ( $Ticket{ResponsibleID} && $Ticket{ResponsibleID} ne $DBTicket{ResponsibleID} ) {
-            $Status = 'Updated';
-            my $Success = $TicketObject->TicketResponsibleSet(
-                NewUserID => $Ticket{ResponsibleID},
-                TicketID  => $DBTicket{TicketID},
-                UserID    => 1,
-            );
+            if ( $Ticket{ResponsibleID} && $Ticket{ResponsibleID} ne $DBTicket{ResponsibleID} ) {
+                $Status = 'Updated';
+                my $Success = $TicketObject->TicketResponsibleSet(
+                    NewUserID => $Ticket{ResponsibleID},
+                    TicketID  => $DBTicket{TicketID},
+                    UserID    => 1,
+                );
 
-            return $Self->_ImportError(
-                %Param,
-                Message => "Could not update Responsible for TicketID $DBTicket{TicketID}",
-            ) unless $Success;
+                return $Self->_ImportError(
+                    %Param,
+                    Message => "Could not update Responsible for TicketID $DBTicket{TicketID}",
+                ) unless $Success;
+            }
         }
 
         # priority
@@ -1780,15 +1815,19 @@ sub _ImportTicket {
         }
         $DBTicket{QueueID} = $Ticket{QueueID} || $Param{ObjectData}{QueueID};
 
-        # type
-        if ( !$Ticket{TypeID} && $Ticket{Type} ) {
-            $Ticket{TypeID} = $Kernel::OM->Get('Kernel::System::Type')->TypeLookup(
-                Type => $Ticket{Type},
-            );
-        }
-        $DBTicket{TypeID} = $Ticket{TypeID} || $Param{ObjectData}{TypeID};
-
+        # need for checking the activated features: Ticket::Type, Ticket::Responsible, Ticket::Service
         my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
+
+        # type
+        if ( $ConfigObject->Get('Ticket::Type') ) {
+            if ( !$Ticket{TypeID} && $Ticket{Type} ) {
+                $Ticket{TypeID} = $Kernel::OM->Get('Kernel::System::Type')->TypeLookup(
+                    Type => $Ticket{Type},
+                );
+            }
+            $DBTicket{TypeID} = $Ticket{TypeID} || $Param{ObjectData}{TypeID};
+        }
+
         if ( $ConfigObject->Get('Ticket::Service') ) {
 
             # service
@@ -1825,12 +1864,14 @@ sub _ImportTicket {
         $DBTicket{LockID} = $Ticket{LockID} || $Param{ObjectData}{LockID};
 
         # responsible
-        if ( !$Ticket{ResponsibleID} && $Ticket{Responsible} ) {
-            $Ticket{ResponsibleID} = $Kernel::OM->Get('Kernel::System::User')->UserLookup(
-                UserLogin => $Ticket{Responsible},
-            );
+        if ( $ConfigObject->Get('Ticket::Responsible') ) {
+            if ( !$Ticket{ResponsibleID} && $Ticket{Responsible} ) {
+                $Ticket{ResponsibleID} = $Kernel::OM->Get('Kernel::System::User')->UserLookup(
+                    UserLogin => $Ticket{Responsible},
+                );
+            }
+            $DBTicket{ResponsibleID} = $Ticket{ResponsibleID} || $Param{ObjectData}{ResponsibleID};
         }
-        $DBTicket{ResponsibleID} = $Ticket{ResponsibleID} || $Param{ObjectData}{ResponsibleID};
 
         # priority
         if ( !$Ticket{PriorityID} && $Ticket{Priority} ) {
