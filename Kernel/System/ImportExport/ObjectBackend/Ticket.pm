@@ -1766,7 +1766,11 @@ sub _ImportTicket {
         $DBTicket{CustomerUser} = $Ticket{CustomerUserID} || $Param{ObjectData}{CustomerUserID};
 
         # title
-        $DBTicket{Title} = $Ticket{Title} || $Ticket{Title} eq '0' ? $Ticket{Title} : $Param{ObjectData}{Subject};
+        $DBTicket{Title} = ( $Ticket{Title} || ( defined $Ticket{Title} && $Ticket{Title} eq '0' ) )
+            ?
+            $Ticket{Title}
+            :
+            $Param{ObjectData}{Subject};
 
         # queue
         if ( !$Ticket{QueueID} && $Ticket{Queue} ) {
