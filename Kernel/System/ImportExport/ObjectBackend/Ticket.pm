@@ -561,7 +561,7 @@ sub SearchAttributesGet {
     # TODO: why is the ObjectData needed here?
     # get object data
     my $ImportExportObject = $Kernel::OM->Get('Kernel::System::ImportExport');
-    my $ObjectData = $ImportExportObject->ObjectDataGet(
+    my $ObjectData         = $ImportExportObject->ObjectDataGet(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
@@ -1104,16 +1104,11 @@ sub ImportDataSave {
         return;
     }
 
-    # just for convenience
-    my $EmptyFieldsLeaveTheOldValues = $ObjectData->{EmptyFieldsLeaveTheOldValues};
-
-    # get the mapping list
+    # get and check the mapping list
     my $MappingList = $ImportExportObject->MappingList(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
     );
-
-    # check the mapping list
     if ( !$MappingList || ref $MappingList ne 'ARRAY' || !@{$MappingList} ) {
 
         $Kernel::OM->Get('Kernel::System::Log')->Log(
@@ -1369,6 +1364,7 @@ sub _ImportTicket {
     my ( $Self, %Param ) = @_;
 
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
+    my $LogObject    = $Kernel::OM->Get('Kernel::System::Log');
 
     my %Ticket = $Param{Ticket}->%*;    # data from the import file
     my %DBTicket;                       # Ticket as retrieved from the database
@@ -1388,11 +1384,12 @@ sub _ImportTicket {
                 # for the sake of consistency, we treat other situations the same, although they are less clear
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
                     && $Self->{LastTicketID} == $Self->{TicketIDRelation}{ $Ticket{TicketID} } ? 'debug' : 'info';
-                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                $LogObject->Log(
                     Priority => $Prio,
                     Message  => "Skipping ticket creation for entity $Param{Counter} (TicketID $Ticket{TicketID}) as it was handled before."
                 );
                 $Self->{LastTicketID} = $Self->{TicketIDRelation}{ $Ticket{TicketID} };
+
                 return $Status;
             }
 
@@ -1409,7 +1406,6 @@ sub _ImportTicket {
                 $DBTicketID = $Ticket{TicketID};
             }
         }
-
         elsif ( $Param{Identifier}{TicketNumber} ) {
 
             # check previously imported tickets of this run
@@ -1420,7 +1416,7 @@ sub _ImportTicket {
                 # for the sake of consistency, we treat other situations the same, although they are less clear
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
                     && $Self->{LastTicketID} == $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } ? 'debug' : 'info';
-                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                $LogObject->Log(
                     Priority => $Prio,
                     Message  => "Skipping ticket creation for entity $Param{Counter} (TicketNumber $Ticket{TicketNumber}) as it was handled before."
                 );
@@ -1477,6 +1473,8 @@ sub _ImportTicket {
     # just update the ticket if it is already present
     if (%DBTicket) {
         $Status = 'Skipped';
+
+        # decide whether the old values should be kept
         my $SkipEmpty = $Param{ObjectData}{EmptyFieldsLeaveTheOldValues};
 
         # customer
@@ -1486,7 +1484,7 @@ sub _ImportTicket {
         $DBTicket{CustomerUserID} //= '';
 
         if ( ( !$Ticket{CustomerID} && $DBTicket{CustomerID} ) || ( !$Ticket{CustomerUserID} && $DBTicket{CustomerUserID} ) ) {
-            $Kernel::OM->Get('Kernel::System::Log')->Log(
+            $LogObject->Log(
                 Priority => 'notice',
                 Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
                     . "Ticket customer can not be emptied - not a real chronological update; ignoring this, and keeping Customer(User)ID.",
@@ -1594,7 +1592,7 @@ sub _ImportTicket {
             $DBTicket{ServiceID} //= '';
 
             if ( !$Ticket{ServiceID} && $DBTicket{ServiceID} ) {
-                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                $LogObject->Log(
                     Priority => 'notice',
                     Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
                         . "Services can not be emptied - not a real chronological update; ignoring this, and keeping the Service.",
@@ -1625,7 +1623,7 @@ sub _ImportTicket {
             $DBTicket{SLAID} //= '';
 
             if ( !$Ticket{SLAID} && $DBTicket{SLAID} ) {
-                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                $LogObject->Log(
                     Priority => 'notice',
                     Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
                         . "SLAs can not be emptied - not a real chronological update; ignoring this, and keeping the SLA.",
@@ -1656,7 +1654,7 @@ sub _ImportTicket {
         $Ticket{OwnerID} ||= $SkipEmpty ? $DBTicket{OwnerID} : $Param{ObjectData}{OwnerID};
 
         if ( !$Ticket{OwnerID} && $DBTicket{OwnerID} ) {
-            $Kernel::OM->Get('Kernel::System::Log')->Log(
+            $LogObject->Log(
                 Priority => 'notice',
                 Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
                     . "Owners can not be emptied - not a real chronological update; ignoring this, and keeping the Owner.",
@@ -1710,7 +1708,7 @@ sub _ImportTicket {
             $Ticket{ResponsibleID} ||= $SkipEmpty ? $DBTicket{ResponsibleID} : $Param{ObjectData}{ResponsibleID};
 
             if ( !$Ticket{ResponsibleID} && $DBTicket{ResponsibleID} ) {
-                $Kernel::OM->Get('Kernel::System::Log')->Log(
+                $LogObject->Log(
                     Priority => 'notice',
                     Message  => "Unexpected state encountered for existing TicketID $Ticket{TicketID} (Entity $Param{Counter}): "
                         . "Responsibles can not be emptied - not a real chronological update; ignoring this, and keeping the Responsible.",
