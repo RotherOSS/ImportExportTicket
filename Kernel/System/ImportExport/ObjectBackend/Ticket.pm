@@ -952,7 +952,7 @@ sub ExportDataGet {
                 for my $i ( 0 .. $ArticleMappingLast ) {
 
                     # empty fields are done in the ticket part
-                    next ARTICLEMAP if !$ArticleMapping[$i];
+                    next ARTICLEMAP unless $ArticleMapping[$i];
 
                     # extract key
                     my $Key = $ArticleMapping[$i]{Key};
@@ -1151,7 +1151,7 @@ sub ImportDataSave {
                 next MAPPINGOBJECTDATA;
             }
 
-            next MAPPINGOBJECTDATA if !$MappingObjectData->{Identifier};
+            next MAPPINGOBJECTDATA unless $MappingObjectData->{Identifier};
 
             if ( $MappingObjectData->{Key} ne 'Article_ArticleID' ) {
                 $Kernel::OM->Get('Kernel::System::Log')->Log(
@@ -1339,8 +1339,8 @@ sub _ImportTicket {
 
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
 
-    my %Ticket = $Param{Ticket}->%*;
-    my %DBTicket;    # Ticket as retrieved from the database
+    my %Ticket = $Param{Ticket}->%*;    # data from the import file
+    my %DBTicket;                       # Ticket as retrieved from the database
     my $Status = 'Skipped';
 
     if ( $Param{Identifier} ) {
@@ -1478,7 +1478,7 @@ sub _ImportTicket {
                 return $Self->_ImportError(
                     %Param,
                     Message => "Could not update Customer(User) for TicketID $DBTicket{TicketID}",
-                ) if !$Success;
+                ) unless $Success;
             }
         }
 
@@ -1499,7 +1499,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Title for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # queue
@@ -1521,7 +1521,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Queue for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # type
@@ -1543,7 +1543,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Type for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
@@ -1577,7 +1577,7 @@ sub _ImportTicket {
                 return $Self->_ImportError(
                     %Param,
                     Message => "Could not update Service for TicketID $DBTicket{TicketID}",
-                ) if !$Success;
+                ) unless $Success;
             }
 
             # SLA
@@ -1608,7 +1608,7 @@ sub _ImportTicket {
                 return $Self->_ImportError(
                     %Param,
                     Message => "Could not update SLA for TicketID $DBTicket{TicketID}",
-                ) if !$Success;
+                ) unless $Success;
             }
         }
 
@@ -1639,7 +1639,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Owner for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # lock
@@ -1662,7 +1662,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Lock for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # responsible
@@ -1692,7 +1692,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Responsible for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # priority
@@ -1714,7 +1714,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update Priority for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # state
@@ -1736,7 +1736,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update State for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
 
         # archive flag
@@ -1753,7 +1753,7 @@ sub _ImportTicket {
             return $Self->_ImportError(
                 %Param,
                 Message => "Could not update ArchiveFlag for TicketID $DBTicket{TicketID}",
-            ) if !$Success;
+            ) unless $Success;
         }
     }
 
@@ -1983,7 +1983,7 @@ sub _ImportArticle {
     return $Self->_ImportError(
         %Param,
         Message => "Could not find new TicketID for Article",
-    ) if !$TicketID;
+    ) unless $TicketID;
 
     my $ArticleObject = $Kernel::OM->Get('Kernel::System::Ticket::Article');
 
@@ -2052,12 +2052,12 @@ sub _ImportArticle {
     return $Self->_ImportError(
         %Param,
         Message => "Could not create the article",
-    ) if !$ArticleID;
+    ) unless $ArticleID;
 
     if ( $Article{CreateTime} ) {
         $Self->{DBObject} //= $Kernel::OM->Get('Kernel::System::DB');
 
-        return if !$Self->{DBObject}->Do(
+        return unless $Self->{DBObject}->Do(
             SQL  => "UPDATE article SET create_time = ? WHERE id = ?",
             Bind => [ \$Article{CreateTime}, \$ArticleID ],
         );
@@ -2075,7 +2075,7 @@ sub _ImportArticle {
         return $Self->_ImportError(
             %Param,
             Message => "Could not synchronize extended DB entries for ticket $ArticleID",
-        ) if !$Success;
+        ) unless $Success;
     }
 
     # attachments
@@ -2089,7 +2089,7 @@ sub _ImportArticle {
 
             KEY:
             for my $Key (qw( Filename ContentType Disposition )) {
-                next KEY if !$Attachment{$Key};
+                next KEY unless $Attachment{$Key};
 
                 $Attachment{$Key} = Encode::decode( 'UTF-8', $Attachment{$Key} );
             }
@@ -2103,7 +2103,7 @@ sub _ImportArticle {
             return $Self->_ImportError(
                 %Param,
                 Message => "Error with importing an attachment for article $ArticleID",
-            ) if !$Success;
+            ) unless $Success;
         }
     }
 
@@ -2118,7 +2118,7 @@ sub _ImportArticle {
         return $Self->_ImportError(
             %Param,
             Message => "Error with importing the plain email for article $ArticleID",
-        ) if !$Success;
+        ) unless $Success;
     }
 
     my $DynamicFieldObject        = $Kernel::OM->Get('Kernel::System::DynamicField');
@@ -2150,7 +2150,7 @@ sub _ImportArticle {
             $Article{$Attr} = $Article{$Attr} ? [ map { decode( 'UTF-8', decode_base64($_) ) } split( /###/, $Article{$Attr} ) ] : [];
         }
 
-        next DYNAMICFIELD if !$DynamicFieldBackendObject->ValueIsDifferent(
+        next DYNAMICFIELD unless $DynamicFieldBackendObject->ValueIsDifferent(
             DynamicFieldConfig => $DynamicFieldConfig,
             Value1             => $Article{$Attr},
             Value2             => $DBValue,
@@ -2177,7 +2177,7 @@ sub _ImportArticle {
         return $Self->_ImportError(
             %Param,
             Message => "Could not update $Attr for ArticleID $ArticleID",
-        ) if !$Success;
+        ) unless $Success;
     }
 
     return 'Created';
@@ -2241,13 +2241,13 @@ sub _SynchronizeExtendedDBEntries {
     if ( $Param{ArticleID} ) {
 
         # article_flag
-        return if !$Self->{FDBObject}->Prepare(
+        return unless $Self->{FDBObject}->Prepare(
             SQL  => 'SELECT create_by FROM article_flag WHERE article_id = ? AND article_key = ? AND article_value = ?',
             Bind => [ \$Param{ForeignArticleID}, \'Seen', \1 ],
         );
 
         while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
-            return if !$Self->{DBObject}->Do(
+            return unless $Self->{DBObject}->Do(
                 SQL => 'INSERT INTO article_flag (article_id, article_key, article_value, create_time, create_by)' .
                     'VALUES (?, ?, ?, current_timestamp, ?)',
                 Bind => [ \$Param{ArticleID}, \'Seen', \1, \$Row[0] ],
@@ -2255,14 +2255,14 @@ sub _SynchronizeExtendedDBEntries {
         }
 
         # article_history
-        return if !$Self->{FDBObject}->Prepare(
+        return unless $Self->{FDBObject}->Prepare(
             SQL => 'SELECT name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by ' .
                 'FROM ticket_history WHERE article_id = ?',
             Bind => [ \$Param{ForeignArticleID} ],
         );
 
         while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
-            return if !$Self->{DBObject}->Do(
+            return unless $Self->{DBObject}->Do(
                 SQL =>
                     'INSERT INTO ticket_history (ticket_id, article_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
                     .
@@ -2275,13 +2275,13 @@ sub _SynchronizeExtendedDBEntries {
     }
 
     # ticket_flag
-    return if !$Self->{FDBObject}->Prepare(
+    return unless $Self->{FDBObject}->Prepare(
         SQL  => 'SELECT create_by FROM ticket_flag WHERE ticket_id = ? AND ticket_key = ? AND ticket_value = ?',
         Bind => [ \$Param{ForeignTicketID}, \'Seen', \1 ],
     );
 
     while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
-        return if !$Self->{DBObject}->Do(
+        return unless $Self->{DBObject}->Do(
             SQL => 'INSERT INTO ticket_flag (ticket_id, ticket_key, ticket_value, create_time, create_by)' .
                 'VALUES (?, ?, ?, current_timestamp, ?)',
             Bind => [ \$Param{TicketID}, \'Seen', \1, \$Row[0] ],
@@ -2289,7 +2289,7 @@ sub _SynchronizeExtendedDBEntries {
     }
 
     # ticket_history
-    return if !$Self->{DBObject}->Do(
+    return unless $Self->{DBObject}->Do(
         SQL  => 'DELETE FROM ticket_history WHERE ticket_id = ? AND (article_id IS NULL OR article_id = 0)',
         Bind => [ \$Param{TicketID} ],
     );
@@ -2301,14 +2301,14 @@ sub _SynchronizeExtendedDBEntries {
         CreateUserID => 1,
     );
 
-    return if !$Self->{FDBObject}->Prepare(
+    return unless $Self->{FDBObject}->Prepare(
         SQL => 'SELECT name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by ' .
             'FROM ticket_history WHERE ticket_id = ? AND (article_id IS NULL OR article_id = 0)',
         Bind => [ \$Param{ForeignTicketID} ],
     );
 
     while ( my @Row = $Self->{FDBObject}->FetchrowArray() ) {
-        return if !$Self->{DBObject}->Do(
+        return unless $Self->{DBObject}->Do(
             SQL =>
                 'INSERT INTO ticket_history (ticket_id, name, history_type_id, type_id, queue_id, owner_id, priority_id, state_id, create_time, create_by, change_time, change_by)'
                 .
@@ -2324,7 +2324,7 @@ sub _SynchronizeExtendedDBEntries {
     my %ForeignLinkObjects;
     my %LObjectIDs;
 
-    return if !$Self->{FDBObject}->Prepare(
+    return unless $Self->{FDBObject}->Prepare(
         SQL  => "SELECT id,name FROM link_object ",
         Bind => [],
     );
@@ -2342,7 +2342,7 @@ sub _SynchronizeExtendedDBEntries {
     my %ForeignLinkTypes;
     my %LTypeIDs;
 
-    return if !$Self->{FDBObject}->Prepare(
+    return unless $Self->{FDBObject}->Prepare(
         SQL  => "SELECT id,name FROM link_type ",
         Bind => [],
     );
@@ -2361,7 +2361,7 @@ sub _SynchronizeExtendedDBEntries {
 
     for my $Key ( keys %Direction ) {
 
-        return if !$Self->{FDBObject}->Prepare(
+        return unless $Self->{FDBObject}->Prepare(
             SQL => "SELECT $Key" . "_object_id, $Key" . "_key, type_id, state_id FROM link_relation " .
                 "WHERE $Direction{$Key}_object_id = ? AND $Direction{$Key}_key = ?",
             Bind => [ \$ForeignTicketObjectID, \$Param{ForeignTicketID} ],
@@ -2380,7 +2380,7 @@ sub _SynchronizeExtendedDBEntries {
                 $Row[1] = exists $Self->{TicketIDRelation}{ $Row[1] } ? $Self->{TicketIDRelation}{ $Row[1] } : $Row[1];
             }
 
-            return if !$Self->{DBObject}->Do(
+            return unless $Self->{DBObject}->Do(
                 SQL =>
                     "INSERT INTO link_relation ($Direction{$Key}_object_id, $Direction{$Key}_key, $Key\_object_id, $Key\_key, type_id, state_id, create_time, create_by) " .
                     "VALUES (?, ?, ?, ?, ?, ?, current_timestamp, ?)",
