@@ -396,6 +396,16 @@ sub ObjectAttributesGet {
             Input => {
                 Type => 'Checkbox',
             },
+        },
+        {
+            Key   => 'AllowedOwnerInTarget',
+            Name  => 'Only update tickets of this user in the target system',
+            Input => {
+                Type      => 'Text',
+                Required  => 0,
+                Size      => 50,
+                MaxLength => 191,      # length of users.login field in the database
+            },
         };
 
     return \@Attributes;
@@ -1473,6 +1483,14 @@ sub _ImportTicket {
     # just update the ticket if it is already present
     if (%DBTicket) {
         $Status = 'Skipped';
+
+        # There are cases when a ticket update should not take place. Currently one
+        # one of these cases is supported. This case is for updating owners of tickets.
+        # Only tickets that are not owned by a specific agent. Usually this special agent
+        # is the default agent of a previous import.
+        if ( $Param{ObjectData}->{AllowedOwnerInTarget} ) {
+            return 'Skipped' unless $DBTicket{Owner} eq $Param{ObjectData}->{AllowedOwnerInTarget};
+        }
 
         # decide whether the old values should be kept
         my $SkipEmpty = $Param{ObjectData}{EmptyFieldsLeaveTheOldValues};
