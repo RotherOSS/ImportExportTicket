@@ -4,18 +4,21 @@
 # Guide package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2024.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: OTOBO Installation Guide rel-10.1\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-05-16 10:09+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"PO-Revision-Date: 2024-09-09 07:17+0000\n"
+"Last-Translator: Markus Hlinka <mah@rother-oss.com>\n"
+"Language-Team: German <http://weblate.otobo.org/projects/"
+"manual-importexportticket/rel-10_1/de/>\n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
 "Generated-By: Babel 2.4.0\n"
 
 #: ../../content/index.rst:16
@@ -24,7 +27,7 @@ msgstr ""
 
 #: ../../content/index.rst:19
 msgid "Description"
-msgstr ""
+msgstr "Beschreibung"
 
 #: ../../content/index.rst:20
 msgid "Ticket backend for the ImportExport module."
@@ -44,7 +47,7 @@ msgstr ""
 
 #: ../../content/index.rst:30
 msgid "Packages"
-msgstr ""
+msgstr "Pakete"
 
 #: ../../content/index.rst:31
 msgid "ImportExport 10.1.2"
@@ -52,7 +55,7 @@ msgstr ""
 
 #: ../../content/index.rst:34
 msgid "Third-party software"
-msgstr ""
+msgstr "Drittanbieter-Software"
 
 #: ../../content/index.rst:35
 msgid "\\-"
@@ -60,7 +63,7 @@ msgstr ""
 
 #: ../../content/index.rst:38
 msgid "Usage"
-msgstr ""
+msgstr "Verwendung"
 
 #: ../../content/index.rst:39
 msgid ""
@@ -75,18 +78,25 @@ msgid ""
 "TicketID or TicketNumber are required to be marked as identifier for "
 "ticket identification"
 msgstr ""
+"TicketID oder TicketNumber müssen als Identifikator für die Ticket-"
+"Identifikation gekennzeichnet werden"
 
 #: ../../content/index.rst:42
 msgid ""
 "Article_ArticleID is required to be marked as identifier for article "
 "identification"
 msgstr ""
+"Artikel_ArtikelID muss als Identifikator für die Artikelidentifikation "
+"gekennzeichnet werden"
 
 #: ../../content/index.rst:43
 msgid ""
 "When using identification and the object is found in the system, tickets "
 "are just updated instead of created, articles are skipped"
 msgstr ""
+"Wenn die Identifizierung verwendet wird und das Objekt im System gefunden "
+"wird, werden Tickets nur aktualisiert statt erstellt, Artikel werden "
+"übersprungen"
 
 #: ../../content/index.rst:44
 msgid ""
@@ -98,6 +108,13 @@ msgid ""
 "system with a different SystemID or TicketNumber generator - use with "
 "care."
 msgstr ""
+"Unabhängig davon, ob eine Identifikation verwendet wird oder nicht, werden "
+"bei der Erstellung von Objekten die TicketID und die ArticleID von OTOBO neu "
+"generiert, die TicketNumber (falls enthalten) wird auf diejenige der csv "
+"gesetzt. Letzteres führt zu einem Importfehler, wenn die TicketNumber "
+"bereits existiert (keine Identifikation verwendet), und kann auch "
+"problematisch sein, wenn es aus einem System mit einem anderen SystemID- "
+"oder TicketNumber-Generator importiert wird - mit Vorsicht verwenden."
 
 #: ../../content/index.rst:46
 msgid ""
@@ -107,7 +124,7 @@ msgstr ""
 
 #: ../../content/index.rst:49
 msgid "Configuration Reference"
-msgstr ""
+msgstr "Referenz zur Konfiguration"
 
 #: ../../content/index.rst:52
 msgid "Core::ImportExport::ObjectBackend::ModuleRegistration"
@@ -151,15 +168,15 @@ msgstr ""
 
 #: ../../content/index.rst:73
 msgid "About"
-msgstr ""
+msgstr "Über"
 
 #: ../../content/index.rst:76
 msgid "Contact"
-msgstr ""
+msgstr "Kontakt"
 
 #: ../../content/index.rst:77
 msgid "Rother OSS GmbH"
-msgstr ""
+msgstr "Rother OSS GmbH"
 
 #: ../../content/index.rst:78
 msgid "Email: hello@otobo.de"
@@ -171,11 +188,12 @@ msgstr ""
 
 #: ../../content/index.rst:82
 msgid "Version"
-msgstr ""
+msgstr "Version"
 
 #: ../../content/index.rst:83
 msgid ""
 "Author: |doc-vendor| / Version: |doc-version| / Date of release: |doc-"
 "datestamp|"
 msgstr ""
-
+"Autor: |doc-vendor| / Version: |doc-version| / Datum der Veröffentlichung: "
+"|doc-datestamp|"
