@@ -672,7 +672,7 @@ sub SearchAttributesGet {
         };
     }
 
-    push @Attributes, (
+    push @Attributes,
         {
             Key   => 'StateIDs',
             Name  => 'State',
@@ -709,61 +709,53 @@ sub SearchAttributesGet {
                 Size      => 50,
                 MaxLength => 250,
             },
-        },
-        {
-            Key   => 'TicketCreateTimeOlderMinutes',
-            Name  => 'Ticket Create Time (older) [min]',
-            Input => {
-                Type      => 'Text',
-                Size      => 50,
-                MaxLength => 250,
-            },
-        },
-        {
-            Key   => 'TicketCreateTimeNewerMinutes',
-            Name  => 'Ticket Create Time (newer) [min]',
-            Input => {
-                Type      => 'Text',
-                Size      => 50,
-                MaxLength => 250,
-            },
-        },
-        {
-            Key   => 'TicketChangeTimeOlderMinutes',
-            Name  => 'Ticket Change Time (older) [min]',
-            Input => {
-                Type      => 'Text',
-                Size      => 50,
-                MaxLength => 50,
-            },
-        },
-        {
-            Key   => 'TicketChangeTimeNewerMinutes',
-            Name  => 'Ticket Change Time (newer) [min]',
-            Input => {
-                Type      => 'Text',
-                Size      => 50,
-                MaxLength => 50,
-            },
-        },
-    );
-
-    my %DateRestrictions = (
-        TicketCreateTimeOlderDate     => 'Ticket Create Time (before)',
-        TicketCreateTimeNewerDate     => 'Ticket Create Time (after)',
-        TicketLastChangeTimeOlderDate => 'Ticket Last Change Time (before)',
-        TicketLastChangeTimeNewerDate => 'Ticket Last Change Time (after)',
-    );
-
-    for my $Key ( keys %DateRestrictions ) {
-        push @Attributes, {
-            Key   => $Key,
-            Name  => $DateRestrictions{$Key},
-            Input => {
-                Type     => 'DateTime',
-                Optional => 1,
-            },
         };
+
+    # Filter by create or change time, specify in minutes
+    {
+        my @KeyAndNames = (
+            [ TicketCreateTimeOlderMinutes => 'Ticket Create Time (older) [min]' ],
+            [ TicketCreateTimeNewerMinutes => 'Ticket Create Time (newer) [min]' ],
+            [ TicketChangeTimeOlderMinutes => 'Ticket Change Time (older) [min]' ],
+            [ TicketChangeTimeNewerMinutes => 'Ticket Change Time (newer) [min]' ],
+        );
+        for my $ArrRef (@KeyAndNames) {
+            my ( $Key, $Name ) = $ArrRef->@*;
+            push @Attributes,
+                {
+                    Key   => $Key,
+                    Name  => $Name,
+                    Input => {
+                        Type      => 'Text',
+                        Size      => 50,
+                        MaxLength => 50,
+                    },
+                },
+                ;
+        }
+    }
+
+    # Filter by create or change time, specify by date and time
+    {
+        my @KeyAndNames = (
+            [ TicketCreateTimeOlderDate     => 'Ticket Create Time (before)' ],
+            [ TicketCreateTimeNewerDate     => 'Ticket Create Time (after)' ],
+            [ TicketLastChangeTimeOlderDate => 'Ticket Last Change Time (before)' ],
+            [ TicketLastChangeTimeNewerDate => 'Ticket Last Change Time (after)' ],
+        );
+        for my $ArrRef (@KeyAndNames) {
+            my ( $Key, $Name ) = $ArrRef->@*;
+            push @Attributes,
+                {
+                    Key   => $Key,
+                    Name  => $Name,
+                    Input => {
+                        Type     => 'DateTime',
+                        Optional => 1,
+                    },
+                },
+                ;
+        }
     }
 
     return \@Attributes;
