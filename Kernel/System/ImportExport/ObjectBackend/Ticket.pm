@@ -714,10 +714,10 @@ sub SearchAttributesGet {
     # Filter by create or change time, specify in minutes
     {
         my @KeyAndNames = (
-            [ TicketCreateTimeOlderMinutes => 'Ticket Create Time (older) [min]' ],
             [ TicketCreateTimeNewerMinutes => 'Ticket Create Time (newer) [min]' ],
-            [ TicketChangeTimeOlderMinutes => 'Ticket Change Time (older) [min]' ],
+            [ TicketCreateTimeOlderMinutes => 'Ticket Create Time (older) [min]' ],
             [ TicketChangeTimeNewerMinutes => 'Ticket Change Time (newer) [min]' ],
+            [ TicketChangeTimeOlderMinutes => 'Ticket Change Time (older) [min]' ],
         );
         for my $ArrRef (@KeyAndNames) {
             my ( $Key, $Name ) = $ArrRef->@*;
@@ -738,10 +738,10 @@ sub SearchAttributesGet {
     # Filter by create or change time, specify by date and time
     {
         my @KeyAndNames = (
-            [ TicketCreateTimeOlderDate     => 'Ticket Create Time (before)' ],
             [ TicketCreateTimeNewerDate     => 'Ticket Create Time (after)' ],
-            [ TicketLastChangeTimeOlderDate => 'Ticket Last Change Time (before)' ],
+            [ TicketCreateTimeOlderDate     => 'Ticket Create Time (before)' ],
             [ TicketLastChangeTimeNewerDate => 'Ticket Last Change Time (after)' ],
+            [ TicketLastChangeTimeOlderDate => 'Ticket Last Change Time (before)' ],
         );
         for my $ArrRef (@KeyAndNames) {
             my ( $Key, $Name ) = $ArrRef->@*;
