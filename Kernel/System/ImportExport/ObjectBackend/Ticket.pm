@@ -30,7 +30,7 @@ use MIME::Base64 qw(encode_base64 decode_base64);
 
 # OTOBO modules
 use Kernel::Language              qw(Translatable);
-use Kernel::System::VariableCheck qw(IsArrayRefWithData IsHashRefWithData);
+use Kernel::System::VariableCheck qw(IsArrayRefWithData);
 
 our @ObjectDependencies = (
     'Kernel::Config',
@@ -135,17 +135,6 @@ sub ObjectAttributesGet {
         return;
     }
 
-    my %StateList = $Kernel::OM->Get('Kernel::System::State')->StateList(
-        UserID => 1,
-    );
-    my %PriorityList = $Kernel::OM->Get('Kernel::System::Priority')->PriorityList(
-        Valid => 1,
-    );
-    my %LockList = $Kernel::OM->Get('Kernel::System::Lock')->LockList(
-        UserID => 1,
-    );
-    my %UserList = $Kernel::OM->Get('Kernel::System::User')->UserList;
-
     my $ConfigObject = $Kernel::OM->Get('Kernel::Config');
     my @Attributes;    # will be returned
 
@@ -220,69 +209,100 @@ sub ObjectAttributesGet {
         };
     }
 
-    push @Attributes,
-        {
-            Key   => 'StateID',
-            Name  => 'Default state',
-            Input => {
-                Type        => 'Selection',
-                Data        => \%StateList,
-                Required    => 1,
-                Translation => 1,
-                Class       => 'Modernize',
-            },
-        },
-        {
-            Key   => 'PriorityID',
-            Name  => 'Default priority',
-            Input => {
-                Type        => 'Selection',
-                Data        => \%PriorityList,
-                Required    => 1,
-                Translation => 1,
-                Class       => 'Modernize',
-            },
-        },
-        {
-            Key   => 'OwnerID',
-            Name  => 'Default owner',
-            Input => {
-                Type        => 'Selection',
-                Data        => \%UserList,
-                Required    => 1,
-                Translation => 0,
-                Class       => 'Modernize',
-            },
-        };
+    # State
+    {
+        my %StateList = $Kernel::OM->Get('Kernel::System::State')->StateList(
+            UserID => 1,
+        );
 
-    if ( $ConfigObject->Get('Ticket::Responsible') ) {
         push @Attributes,
             {
-                Key   => 'ResponsibleID',
-                Name  => 'Default responsible',
+                Key   => 'StateID',
+                Name  => 'Default state',
                 Input => {
-                    Type         => 'Selection',
-                    Data         => \%UserList,
-                    Required     => 0,
-                    PossibleNone => 1,
-                    Translation  => 0,
-                    Class        => 'Modernize',
+                    Type        => 'Selection',
+                    Data        => \%StateList,
+                    Required    => 1,
+                    Translation => 1,
+                    Class       => 'Modernize',
+                },
+            };
+    }
+
+    # Priority
+    {
+        my %PriorityList = $Kernel::OM->Get('Kernel::System::Priority')->PriorityList(
+            Valid => 1,
+        );
+
+        push @Attributes,
+            {
+                Key   => 'PriorityID',
+                Name  => 'Default priority',
+                Input => {
+                    Type        => 'Selection',
+                    Data        => \%PriorityList,
+                    Required    => 1,
+                    Translation => 1,
+                    Class       => 'Modernize',
+                },
+            };
+    }
+
+    # Owner and Responsible
+    {
+        my %UserList = $Kernel::OM->Get('Kernel::System::User')->UserList;
+
+        push @Attributes,
+            {
+                Key   => 'OwnerID',
+                Name  => 'Default owner',
+                Input => {
+                    Type        => 'Selection',
+                    Data        => \%UserList,
+                    Required    => 1,
+                    Translation => 0,
+                    Class       => 'Modernize',
+                },
+            };
+
+        if ( $ConfigObject->Get('Ticket::Responsible') ) {
+            push @Attributes,
+                {
+                    Key   => 'ResponsibleID',
+                    Name  => 'Default responsible',
+                    Input => {
+                        Type         => 'Selection',
+                        Data         => \%UserList,
+                        Required     => 0,
+                        PossibleNone => 1,
+                        Translation  => 0,
+                        Class        => 'Modernize',
+                    },
+                };
+        }
+    }
+
+    {
+        my %LockList = $Kernel::OM->Get('Kernel::System::Lock')->LockList(
+            UserID => 1,
+        );
+
+        push @Attributes,
+            {
+                Key   => 'LockID',
+                Name  => 'Default lock',
+                Input => {
+                    Type        => 'Selection',
+                    Data        => \%LockList,
+                    Required    => 1,
+                    Translation => 1,
+                    Class       => 'Modernize',
                 },
             };
     }
 
     push @Attributes,
-        {
-            Key   => 'LockID',
-            Name  => 'Default lock',
-            Input => {
-                Type        => 'Selection',
-                Data        => \%LockList,
-                Required    => 1,
-                Translation => 1,
-                Class       => 'Modernize',
-            },
-        },
         {
             Key   => 'CustomerID',
             Name  => 'Default CustomerID',
@@ -857,6 +877,9 @@ sub ExportDataGet {
         # Search all Ticket_IDs.
         # When in chunked mode then get the complete list in the first invocation and store it as instance data.
         # For simplicities sake assume that the template ID does not change in subsequent calls.
+        #
+        # TicketSearch() has a default limit of 10_000. This is fine in a webapp but not for a complete export.
+        # As a workaround set the limit to a large number like one billion.
         my %TicketSearchParam = (
             Limit      => 1_000_000_000,
             TemplateID => $Param{TemplateID},
@@ -1038,7 +1061,9 @@ sub ExportDataGet {
 
 =head2 ImportDataSave()
 
-imports a single entity of the import data. The C<TemplateID> points to the definition
+imports a single entity of the import data. An entity is either a ticket or an article.
+
+The C<TemplateID> points to the definition
 of the current import. C<ImportDataRow> holds the data. C<Counter> is only used in
 error messages, for indicating which item was not imported successfully.
 
@@ -1111,6 +1136,7 @@ sub ImportDataSave {
     }
 
     # get and check the mapping list
+    # TODO: why is this called for every row of the import file ?
     my $MappingList = $ImportExportObject->MappingList(
         TemplateID => $Param{TemplateID},
         UserID     => $Param{UserID},
@@ -1192,6 +1218,7 @@ sub ImportDataSave {
                         "Can't import entity $Param{Counter}: "
                         . "Articles can only be identified via 'Article_ArticleID' not by '$MappingObjectData->{Key}'.",
                 );
+
                 return;
             }
             elsif ( !$Param{ImportDataRow}[ $i - 1 ] ) {
@@ -1201,6 +1228,7 @@ sub ImportDataSave {
                         "Can't import entity $Param{Counter}: "
                         . "'Article_ArticleID' can not be empty or 0 when used as identifier.",
                 );
+
                 return;
             }
 
@@ -1291,16 +1319,18 @@ sub ImportDataSave {
         if ( !$Status ) {
             $Kernel::OM->Get('Kernel::System::Log')->Log(
                 Priority => 'error',
-                Message  =>
-                    "Can't import entity $Param{Counter}: "
-                    . "TicketImport: $Self->{Error}",
+                Message  => "Can't import entity $Param{Counter}: TicketImport: $Self->{Error}",
             );
 
             return;
         }
     }
 
+    # An article exists because an article was declared in the same line as the ticket,
+    # or because an article was declared in a separate line.
     if ( %Article && $ObjectData->{IncludeArticles} ) {
+
+        # TODO: why not simply pass the id of the new ticket ?
         my $ArticleStatus = $Self->_ImportArticle(
             Article    => \%Article,
             Identifier => $Identifier{Article},
@@ -1310,9 +1340,7 @@ sub ImportDataSave {
         if ( !$ArticleStatus ) {
             $Kernel::OM->Get('Kernel::System::Log')->Log(
                 Priority => 'error',
-                Message  =>
-                    "Can't import entity $Param{Counter}: "
-                    . "ArticleImport: $Self->{Error}",
+                Message  => "Can't import entity $Param{Counter}: ArticleImport: $Self->{Error}",
             );
 
             return;
@@ -1427,6 +1455,7 @@ sub _ImportTicket {
                     Message  => "Skipping ticket creation for entity $Param{Counter} (TicketNumber $Ticket{TicketNumber}) as it was handled before."
                 );
                 $Self->{LastTicketID} = $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} };
+
                 return $Self->{LastTicketID};
             }
 
@@ -2046,6 +2075,7 @@ sub _ImportArticle {
 
     my $ArticleObject = $Kernel::OM->Get('Kernel::System::Ticket::Article');
 
+    # avoid duplicate articles if ArticleID is given
     if ( $Param{Identifier} && $Param{Identifier}{ArticleID} && $Article{ArticleID} ) {
         my @DBArticles = $ArticleObject->ArticleList(
             TicketID  => $TicketID,
