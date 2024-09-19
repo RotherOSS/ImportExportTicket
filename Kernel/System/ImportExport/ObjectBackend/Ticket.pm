@@ -858,6 +858,7 @@ sub ExportDataGet {
         # When in chunked mode then get the complete list in the first invocation and store it as instance data.
         # For simplicities sake assume that the template ID does not change in subsequent calls.
         my %TicketSearchParam = (
+            Limit      => 1_000_000_000,
             TemplateID => $Param{TemplateID},
             UserID     => $Param{UserID},
         );
