@@ -783,6 +783,7 @@ sub ExportDataGet {
 
     # Search all Ticket_IDs
     my @TicketIDs = sort { $a <=> $b } $TicketObject->TicketSearch(
+        Limit  => 1_000_000_000,
         %SearchDataPrepared,
         Result => 'ARRAY',
         UserID => 1,
