@@ -1103,13 +1103,18 @@ C<RetCode> is one of:
 
 =item "Ticket updated" : a ticket was updated
 
-=item "Ticket skipped" : a ticket was skipped
+=item "Ticket skipped" : a ticket was skipped because of an import filter. was shut.
+
+There are two input filters: AllowedOwnerInTarget and SkipExistingTickets.
 
 =item "Ticket updated, Article created" : a ticket was updated and an article was created
 
 =item "Article created" : an article was created
 
 =item "Article skipped" : an article was skipped
+
+Either because the corresponding ticket was skipped or because the article
+already had been imported.
 
 =back
 
@@ -1230,9 +1235,17 @@ sub ImportDataSave {
         &&
         1;
 
-    if ($ArticleIsOnSeparateLine) {
+    if ( $ArticleIsOnSeparateLine && $Self->{LastTicketWasSkipped} ) {
 
-        # handling an article an a separate line
+        # Ignore this article because the last ticket was ignored.
+        # Returning -1 as this does not count as a failure,
+        # but we still want to indicate that something special is going on.
+        return ( -1, 'Article skipped' );
+    }
+    elsif ($ArticleIsOnSeparateLine) {
+
+        # Handling an article an a separate line. The last ticket was not ignored.
+
         my $i = 1;
         MAPPINGOBJECTDATA:
         for my $MappingObjectData (@MappingObjectList) {
@@ -1392,6 +1405,11 @@ sub ImportDataSave {
         }
     }
 
+    # Skipped tickets and articles are not reported as failures
+    return ( -1, $Status ) if $Status =~ m/skipped/;
+
+    # Return the last ticket ID even if that value is used only
+    # as a failure indicator in ImportExport.
     return ( $Self->{LastTicketID}, $Status );
 }
 
@@ -1437,6 +1455,10 @@ sub _TicketSearch {
 
 sub _ImportTicket {
     my ( $Self, %Param ) = @_;
+
+    # We are dealing with a new ticket. We assume that this ticket
+    # won't be skipped until we check the import filters.
+    undef $Self->{LastTicketWasSkipped};
 
     my $TicketObject = $Kernel::OM->Get('Kernel::System::Ticket');
     my $LogObject    = $Kernel::OM->Get('Kernel::System::Log');
@@ -1552,15 +1574,29 @@ sub _ImportTicket {
 
     # just update the ticket if it is already present
     if (%DBTicket) {
-        $Status = 'Ticket not changed';
 
         # There are cases when a ticket update should not take place. Currently one
         # one of these cases is supported. This case is for updating owners of tickets.
         # Only tickets that are not owned by a specific agent. Usually this special agent
         # is the default agent of a previous import.
-        if ( $Param{ObjectData}->{AllowedOwnerInTarget} ) {
-            return 'Ticket not changed' unless $DBTicket{Owner} eq $Param{ObjectData}->{AllowedOwnerInTarget};
+        {
+            # Update only tickets that are not owned by a specific agent. Usually this special agent
+            # is the default agent of a previous import. The use case is when additional users
+            # are are activated after an initial import of the tickets.
+            if (
+                $Param{ObjectData}->{AllowedOwnerInTarget}
+                &&
+                $DBTicket{Owner} ne $Param{ObjectData}->{AllowedOwnerInTarget}
+                )
+            {
+                undef $Self->{LastTicketID};
+                $Self->{LastTicketWasSkipped} = 1;
+
+                return 'Ticket skipped';
+            }
         }
+
+        $Status = 'Ticket not changed';
 
         # decide whether the old values should be kept
         my $SkipEmpty = $Param{ObjectData}{EmptyFieldsLeaveTheOldValues};
