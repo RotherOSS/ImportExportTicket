@@ -884,11 +884,7 @@ sub ExportDataGet {
         # Search all Ticket_IDs.
         # When in chunked mode then get the complete list in the first invocation and store it as instance data.
         # For simplicities sake assume that the template ID does not change in subsequent calls.
-        #
-        # TicketSearch() has a default limit of 10_000. This is fine in a webapp but not for a complete export.
-        # As a workaround set the limit to a large number like one billion.
         my %TicketSearchParam = (
-            Limit      => 1_000_000_000,
             TemplateID => $Param{TemplateID},
             UserID     => $Param{UserID},
         );
@@ -1443,9 +1439,13 @@ sub _TicketSearch {
         $SearchDataPrepared{$Key} = $IsSelection{$Key} ? [ split /#####/, $SearchData->{$Key} ] : $SearchData->{$Key};
     }
 
-    # make sure that sort is not called in scalar context
+    # Create an array in order to make sure that sort is not called in scalar context.
+    #
+    # TicketSearch() has a default limit of 10_000. This is fine in a webapp but not for a complete export.
+    # As a workaround set the limit to a large number like one billion.
     my @SortedTicketIDs = sort { $a <=> $b } $TicketObject->TicketSearch(
         %SearchDataPrepared,
+        Limit  => 1_000_000_000,
         Result => 'ARRAY',
         UserID => 1,
     );
