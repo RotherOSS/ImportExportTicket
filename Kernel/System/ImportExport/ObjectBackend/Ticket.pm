@@ -385,6 +385,13 @@ sub ObjectAttributesGet {
             },
         },
         {
+            Key   => 'SkipExistingTickets',
+            Name  => 'Do not update existing tickets',
+            Input => {
+                Type => 'Checkbox',
+            },
+        },
+        {
             Key   => 'AllowedOwnerInTarget',
             Name  => 'Only update tickets of this user in the target system',
             Input => {
@@ -1082,9 +1089,29 @@ Fields with the digit '0' are not empty.
 
 An empty C<TicketID> indicates failure. Otherwise it indicates the
 location of the imported data.
-C<RetCode> is either 'Created', 'Updated' or 'Skipped'. 'Created' means that a new
-ticket has been created. 'Updated' means that the ticket has been updated. 'Skipped'
-means that the data is identical and no changes were made.
+C<RetCode> is one of:
+
+=over 4
+
+=item "Ticket not changed" : the import did not change the ticket data
+
+=item "Ticket not changed, Article created" : the import did not change the ticket data. But an article was created.
+
+=item "Ticket created" : a ticket was created
+
+=item "Ticket created, Article created" : a ticket with an article was created
+
+=item "Ticket updated" : a ticket was updated
+
+=item "Ticket skipped" : a ticket was skipped
+
+=item "Ticket updated, Article created" : a ticket was updated and an article was created
+
+=item "Article created" : an article was created
+
+=item "Article skipped" : an article was skipped
+
+=back
 
 No codes have yet been defined for the failure case.
 
@@ -1191,9 +1218,19 @@ sub ImportDataSave {
         map { $_->{Key} => $_->{Map} }
         values $MappingConfig->%*;
 
-    # handle a separate article
-    # TODO: what about "0" ?
-    if ( $ObjectData->{IncludeArticles} && $ObjectData->{ArticleSeparateLines} && !$Param{ImportDataRow}[0] ) {
+    # Determine whether we have an article on a separate line.
+    # The value of the first column is the marker. When it is empty,
+    # pr has the value C<0>, the we have an article on a separate line.
+    my $ArticleIsOnSeparateLine =
+        $ObjectData->{IncludeArticles}
+        &&
+        $ObjectData->{ArticleSeparateLines}
+        &&
+        !$Param{ImportDataRow}[0]
+        &&
+        1;
+
+    if ($ArticleIsOnSeparateLine) {
 
         # handling an article an a separate line
         my $i = 1;
@@ -1243,7 +1280,8 @@ sub ImportDataSave {
     }
     else {
 
-        # handling a ticket line
+        # Handling a line with ticket information.
+        # The data for an article might be included in that line.
         MAPPINGOBJECTDATA:
         for my $i ( 0 .. $#MappingObjectList ) {
 
@@ -1302,7 +1340,7 @@ sub ImportDataSave {
         }
     }
 
-    my $Status = 'Skipped';
+    my $Status = 'Ticket not changed';
     $Self->{Error} = '';
     if (
         %Ticket
@@ -1329,8 +1367,6 @@ sub ImportDataSave {
     # An article exists because an article was declared in the same line as the ticket,
     # or because an article was declared in a separate line.
     if ( %Article && $ObjectData->{IncludeArticles} ) {
-
-        # TODO: why not simply pass the id of the new ticket ?
         my $ArticleStatus = $Self->_ImportArticle(
             Article    => \%Article,
             Identifier => $Identifier{Article},
@@ -1346,8 +1382,13 @@ sub ImportDataSave {
             return;
         }
 
-        if ( $Status eq 'Skipped' && $ArticleStatus eq 'Created' ) {
-            $Status = 'Updated';
+        # Only the article status is relevant when the article is on a seperate line.
+        # Otherwise both ticket status and article status are relevant.
+        if ($ArticleIsOnSeparateLine) {
+            $Status = $ArticleStatus;
+        }
+        else {
+            $Status = join ', ', $Status, $ArticleStatus;
         }
     }
 
@@ -1402,7 +1443,7 @@ sub _ImportTicket {
 
     my %Ticket = $Param{Ticket}->%*;    # data from the import file
     my %DBTicket;                       # Ticket as retrieved from the database
-    my $Status = 'Skipped';
+    my $Status = 'Ticket not changed';
 
     if ( $Param{Identifier} ) {
         my $DBTicketID;
@@ -1416,6 +1457,8 @@ sub _ImportTicket {
                 # we silently skip this ticket, if it already has been imported
                 # this situation will always occur when articles are not imported separately
                 # for the sake of consistency, we treat other situations the same, although they are less clear
+                #
+                # Articles which follow on separate lines would still be imported in this case.
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
                     && $Self->{LastTicketID} == $Self->{TicketIDRelation}{ $Ticket{TicketID} } ? 'debug' : 'info';
                 $LogObject->Log(
@@ -1448,6 +1491,8 @@ sub _ImportTicket {
                 # we silently skip this ticket, if it already has been imported
                 # this situation will always occur when articles are not imported separately
                 # for the sake of consistency, we treat other situations the same, although they are less clear
+                #
+                # Articles which follow on separate lines would still be imported in this case.
                 my $Prio = !$Param{ObjectData}{ArticleSeparateLines}
                     && $Self->{LastTicketID} == $Self->{TicketNumberIDRelation}{ $Ticket{TicketNumber} } ? 'debug' : 'info';
                 $LogObject->Log(
@@ -1507,14 +1552,14 @@ sub _ImportTicket {
 
     # just update the ticket if it is already present
     if (%DBTicket) {
-        $Status = 'Skipped';
+        $Status = 'Ticket not changed';
 
         # There are cases when a ticket update should not take place. Currently one
         # one of these cases is supported. This case is for updating owners of tickets.
         # Only tickets that are not owned by a specific agent. Usually this special agent
         # is the default agent of a previous import.
         if ( $Param{ObjectData}->{AllowedOwnerInTarget} ) {
-            return 'Skipped' unless $DBTicket{Owner} eq $Param{ObjectData}->{AllowedOwnerInTarget};
+            return 'Ticket not changed' unless $DBTicket{Owner} eq $Param{ObjectData}->{AllowedOwnerInTarget};
         }
 
         # decide whether the old values should be kept
@@ -1539,7 +1584,7 @@ sub _ImportTicket {
                 $Ticket{CustomerUserID} && $Ticket{CustomerUserID} ne $DBTicket{CustomerUserID} ? 1 : 0;
 
             if ($Update) {
-                $Status = 'Updated';
+                $Status = 'Ticket updated';
                 my $Success = $TicketObject->TicketCustomerSet(
                     No       => $Ticket{CustomerID},
                     User     => $Ticket{CustomerUserID},
@@ -1561,7 +1606,7 @@ sub _ImportTicket {
             $Param{ObjectData}{Subject}                         ? $Param{ObjectData}{Subject} : '';
 
         if ( $Ticket{Title} ne $DBTicket{Title} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketTitleUpdate(
                 Title    => $Ticket{Title},
                 TicketID => $DBTicket{TicketID},
@@ -1583,7 +1628,7 @@ sub _ImportTicket {
         $Ticket{QueueID} ||= $SkipEmpty ? $DBTicket{QueueID} : $Param{ObjectData}{QueueID};
 
         if ( $Ticket{QueueID} ne $DBTicket{QueueID} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketQueueSet(
                 QueueID  => $Ticket{QueueID},
                 TicketID => $DBTicket{TicketID},
@@ -1609,7 +1654,7 @@ sub _ImportTicket {
             $Ticket{TypeID} ||= $SkipEmpty ? $DBTicket{TypeID} : $Param{ObjectData}{TypeID};
 
             if ( $Ticket{TypeID} ne $DBTicket{TypeID} ) {
-                $Status = 'Updated';
+                $Status = 'Ticket updated';
                 my $Success = $TicketObject->TicketTypeSet(
                     TypeID   => $Ticket{TypeID},
                     TicketID => $DBTicket{TicketID},
@@ -1643,7 +1688,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{ServiceID} && $Ticket{ServiceID} ne $DBTicket{ServiceID} ) {
-                $Status = 'Updated';
+                $Status = 'Ticket updated';
                 my $Success = $TicketObject->TicketServiceSet(
                     ServiceID => $Ticket{ServiceID},
                     TicketID  => $DBTicket{TicketID},
@@ -1674,7 +1719,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{SLAID} && $Ticket{SLAID} ne $DBTicket{SLAID} ) {
-                $Status = 'Updated';
+                $Status = 'Ticket updated';
                 my $Success = $TicketObject->TicketSLASet(
                     SLAID    => $Ticket{SLAID},
                     TicketID => $DBTicket{TicketID},
@@ -1705,7 +1750,7 @@ sub _ImportTicket {
         }
 
         if ( $Ticket{OwnerID} && $Ticket{OwnerID} ne $DBTicket{OwnerID} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketOwnerSet(
                 NewUserID => $Ticket{OwnerID},
                 TicketID  => $DBTicket{TicketID},
@@ -1728,7 +1773,7 @@ sub _ImportTicket {
 
         # check whether an owner exists here - if not trying to lock will fail
         if ( $Ticket{OwnerID} && $Ticket{LockID} ne $DBTicket{LockID} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketLockSet(
                 LockID   => $Ticket{LockID},
                 TicketID => $DBTicket{TicketID},
@@ -1759,7 +1804,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{ResponsibleID} && $Ticket{ResponsibleID} ne $DBTicket{ResponsibleID} ) {
-                $Status = 'Updated';
+                $Status = 'Ticket updated';
                 my $Success = $TicketObject->TicketResponsibleSet(
                     NewUserID => $Ticket{ResponsibleID},
                     TicketID  => $DBTicket{TicketID},
@@ -1782,7 +1827,7 @@ sub _ImportTicket {
         $Ticket{PriorityID} ||= $SkipEmpty ? $DBTicket{PriorityID} : $Param{ObjectData}{PriorityID};
 
         if ( $Ticket{PriorityID} ne $DBTicket{PriorityID} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketPrioritySet(
                 PriorityID => $Ticket{PriorityID},
                 TicketID   => $DBTicket{TicketID},
@@ -1804,7 +1849,7 @@ sub _ImportTicket {
         $Ticket{StateID} ||= $SkipEmpty ? $DBTicket{StateID} : $Param{ObjectData}{StateID};
 
         if ( $Ticket{StateID} ne $DBTicket{StateID} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketStateSet(
                 StateID  => $Ticket{StateID},
                 TicketID => $DBTicket{TicketID},
@@ -1821,7 +1866,7 @@ sub _ImportTicket {
         $Ticket{ArchiveFlag} ||= $SkipEmpty ? $DBTicket{ArchiveFlag} : $Param{ObjectData}{ArchiveFlag};
 
         if ( $Ticket{ArchiveFlag} ne $DBTicket{ArchiveFlag} ) {
-            $Status = 'Updated';
+            $Status = 'Ticket updated';
             my $Success = $TicketObject->TicketArchiveFlagSet(
                 ArchiveFlag => $Ticket{ArchiveFlag},
                 TicketID    => $DBTicket{TicketID},
@@ -1837,7 +1882,7 @@ sub _ImportTicket {
 
     # A new ticket will be created. Collect the input for TicketCreate in %DBTicket.
     else {
-        $Status = 'Created';
+        $Status = 'Ticket created';
 
         # customer
         $DBTicket{CustomerID}   = $Ticket{CustomerID}     || $Param{ObjectData}{CustomerID};
@@ -2014,8 +2059,8 @@ sub _ImportTicket {
             Value2             => $DBValue,
         );
 
-        if ( $Status eq 'Skipped' ) {
-            $Status = 'Updated';
+        if ( $Status eq 'Ticket not changed' ) {
+            $Status = 'Ticket updated';
         }
 
         my $Success = $DynamicFieldBackendObject->FieldValueValidate(
@@ -2082,7 +2127,7 @@ sub _ImportArticle {
             ArticleID => $Article{ArticleID},
         );
 
-        return 'Skipped' if @DBArticles;
+        return 'Article skipped' if @DBArticles;
     }
 
     my %ValidImportChannel = map { $_ => 1 } qw( Email Internal Phone );
@@ -2269,7 +2314,7 @@ sub _ImportArticle {
         ) unless $Success;
     }
 
-    return 'Created';
+    return 'Article created';
 }
 
 sub _ImportError {
