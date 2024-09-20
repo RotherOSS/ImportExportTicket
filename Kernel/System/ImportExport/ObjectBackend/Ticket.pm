@@ -1237,7 +1237,7 @@ sub ImportDataSave {
 
     if ( $ArticleIsOnSeparateLine && $Self->{LastTicketWasSkipped} ) {
 
-        # Ignore this article because the last ticket was ignored.
+        # Skip this article because the last ticket was ignored.
         # Returning -1 as this does not count as a failure,
         # but we still want to indicate that something special is going on.
         return ( -1, 'Article skipped' );
@@ -1575,10 +1575,9 @@ sub _ImportTicket {
     # just update the ticket if it is already present
     if (%DBTicket) {
 
-        # There are cases when a ticket update should not take place. Currently one
-        # one of these cases is supported. This case is for updating owners of tickets.
-        # Only tickets that are not owned by a specific agent. Usually this special agent
-        # is the default agent of a previous import.
+        # There are cases when a ticket update should not take place. Currently two
+        # of these cases are supported. In both of these cases no articles
+        # are imported until a new ticket is encountered.
         {
             # Update only tickets that are not owned by a specific agent. Usually this special agent
             # is the default agent of a previous import. The use case is when additional users
@@ -1594,9 +1593,18 @@ sub _ImportTicket {
 
                 return 'Ticket skipped';
             }
+
+            # Don't mess with existing tickets.
+            if ( $Param{ObjectData}->{SkipExistingTickets} ) {
+                undef $Self->{LastTicketID};
+                $Self->{LastTicketWasSkipped} = 1;
+
+                return 'Ticket skipped';
+            }
         }
 
         $Status = 'Ticket not changed';
+        my $TicketUpdatedStatus = 'Ticket updated';
 
         # decide whether the old values should be kept
         my $SkipEmpty = $Param{ObjectData}{EmptyFieldsLeaveTheOldValues};
@@ -1620,7 +1628,7 @@ sub _ImportTicket {
                 $Ticket{CustomerUserID} && $Ticket{CustomerUserID} ne $DBTicket{CustomerUserID} ? 1 : 0;
 
             if ($Update) {
-                $Status = 'Ticket updated';
+                $Status = $TicketUpdatedStatus;
                 my $Success = $TicketObject->TicketCustomerSet(
                     No       => $Ticket{CustomerID},
                     User     => $Ticket{CustomerUserID},
@@ -1642,7 +1650,7 @@ sub _ImportTicket {
             $Param{ObjectData}{Subject}                         ? $Param{ObjectData}{Subject} : '';
 
         if ( $Ticket{Title} ne $DBTicket{Title} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketTitleUpdate(
                 Title    => $Ticket{Title},
                 TicketID => $DBTicket{TicketID},
@@ -1664,7 +1672,7 @@ sub _ImportTicket {
         $Ticket{QueueID} ||= $SkipEmpty ? $DBTicket{QueueID} : $Param{ObjectData}{QueueID};
 
         if ( $Ticket{QueueID} ne $DBTicket{QueueID} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketQueueSet(
                 QueueID  => $Ticket{QueueID},
                 TicketID => $DBTicket{TicketID},
@@ -1690,7 +1698,7 @@ sub _ImportTicket {
             $Ticket{TypeID} ||= $SkipEmpty ? $DBTicket{TypeID} : $Param{ObjectData}{TypeID};
 
             if ( $Ticket{TypeID} ne $DBTicket{TypeID} ) {
-                $Status = 'Ticket updated';
+                $Status = $TicketUpdatedStatus;
                 my $Success = $TicketObject->TicketTypeSet(
                     TypeID   => $Ticket{TypeID},
                     TicketID => $DBTicket{TicketID},
@@ -1724,7 +1732,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{ServiceID} && $Ticket{ServiceID} ne $DBTicket{ServiceID} ) {
-                $Status = 'Ticket updated';
+                $Status = $TicketUpdatedStatus;
                 my $Success = $TicketObject->TicketServiceSet(
                     ServiceID => $Ticket{ServiceID},
                     TicketID  => $DBTicket{TicketID},
@@ -1755,7 +1763,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{SLAID} && $Ticket{SLAID} ne $DBTicket{SLAID} ) {
-                $Status = 'Ticket updated';
+                $Status = $TicketUpdatedStatus;
                 my $Success = $TicketObject->TicketSLASet(
                     SLAID    => $Ticket{SLAID},
                     TicketID => $DBTicket{TicketID},
@@ -1786,7 +1794,7 @@ sub _ImportTicket {
         }
 
         if ( $Ticket{OwnerID} && $Ticket{OwnerID} ne $DBTicket{OwnerID} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketOwnerSet(
                 NewUserID => $Ticket{OwnerID},
                 TicketID  => $DBTicket{TicketID},
@@ -1809,7 +1817,7 @@ sub _ImportTicket {
 
         # check whether an owner exists here - if not trying to lock will fail
         if ( $Ticket{OwnerID} && $Ticket{LockID} ne $DBTicket{LockID} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketLockSet(
                 LockID   => $Ticket{LockID},
                 TicketID => $DBTicket{TicketID},
@@ -1840,7 +1848,7 @@ sub _ImportTicket {
             }
 
             if ( $Ticket{ResponsibleID} && $Ticket{ResponsibleID} ne $DBTicket{ResponsibleID} ) {
-                $Status = 'Ticket updated';
+                $Status = $TicketUpdatedStatus;
                 my $Success = $TicketObject->TicketResponsibleSet(
                     NewUserID => $Ticket{ResponsibleID},
                     TicketID  => $DBTicket{TicketID},
@@ -1863,7 +1871,7 @@ sub _ImportTicket {
         $Ticket{PriorityID} ||= $SkipEmpty ? $DBTicket{PriorityID} : $Param{ObjectData}{PriorityID};
 
         if ( $Ticket{PriorityID} ne $DBTicket{PriorityID} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketPrioritySet(
                 PriorityID => $Ticket{PriorityID},
                 TicketID   => $DBTicket{TicketID},
@@ -1885,7 +1893,7 @@ sub _ImportTicket {
         $Ticket{StateID} ||= $SkipEmpty ? $DBTicket{StateID} : $Param{ObjectData}{StateID};
 
         if ( $Ticket{StateID} ne $DBTicket{StateID} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketStateSet(
                 StateID  => $Ticket{StateID},
                 TicketID => $DBTicket{TicketID},
@@ -1902,7 +1910,7 @@ sub _ImportTicket {
         $Ticket{ArchiveFlag} ||= $SkipEmpty ? $DBTicket{ArchiveFlag} : $Param{ObjectData}{ArchiveFlag};
 
         if ( $Ticket{ArchiveFlag} ne $DBTicket{ArchiveFlag} ) {
-            $Status = 'Ticket updated';
+            $Status = $TicketUpdatedStatus;
             my $Success = $TicketObject->TicketArchiveFlagSet(
                 ArchiveFlag => $Ticket{ArchiveFlag},
                 TicketID    => $DBTicket{TicketID},
