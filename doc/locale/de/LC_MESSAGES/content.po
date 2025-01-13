@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: OTOBO Installation Guide rel-11.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-08-31 05:05+0200\n"
-"PO-Revision-Date: 2025-01-10 12:21+0000\n"
+"PO-Revision-Date: 2025-01-13 11:21+0000\n"
 "Last-Translator: Markus Hlinka <mah@rother-oss.com>\n"
 "Language-Team: German <http://translate.otobo.org/projects/"
 "manual-importexportticket/master/de/>\n"
@@ -35,7 +35,7 @@ msgstr ""
 
 #: ../../content/index.rst:27
 msgid "System requirements"
-msgstr ""
+msgstr "Systemanforderungen"
 
 #: ../../content/index.rst:30
 msgid "Framework"
@@ -55,7 +55,7 @@ msgstr "Drittanbieter-Software"
 
 #: ../../content/index.rst:38
 msgid "\\-"
-msgstr ""
+msgstr "\\-"
 
 #: ../../content/index.rst:41
 msgid "Usage"
