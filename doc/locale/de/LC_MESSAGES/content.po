@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: OTOBO Installation Guide rel-11.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-08-31 05:05+0200\n"
-"PO-Revision-Date: 2025-01-13 15:21+0000\n"
+"PO-Revision-Date: 2025-01-16 11:21+0000\n"
 "Last-Translator: Markus Hlinka <mah@rother-oss.com>\n"
 "Language-Team: German <http://translate.otobo.org/projects/"
 "manual-importexportticket/master/de/>\n"
@@ -31,7 +31,7 @@ msgstr "Beschreibung"
 
 #: ../../content/index.rst:24
 msgid "Ticket backend for the ImportExport module."
-msgstr ""
+msgstr "Ticket-Backend für das ImportExport-Modul."
 
 #: ../../content/index.rst:27
 msgid "System requirements"
@@ -155,23 +155,23 @@ msgstr "Konfigurationsreferenz"
 
 #: ../../content/index.rst:62
 msgid "Core::ImportExport::ObjectBackend::ModuleRegistration"
-msgstr ""
+msgstr "Core::ImportExport::ObjectBackend::ModuleRegistration"
 
 #: ../../content/index.rst:65
 msgid "ImportExport::ObjectBackendRegistration###Ticket"
-msgstr ""
+msgstr "ImportExport::ObjectBackendRegistration###Ticket"
 
 #: ../../content/index.rst:66
 msgid "Object backend module registration for the import/export module."
-msgstr ""
+msgstr "Registrierung des Objekt-Backend-Moduls für das Import/Export-Modul."
 
 #: ../../content/index.rst:69
 msgid "Core::ImportExport::ObjectBackend::Ticket"
-msgstr ""
+msgstr "Core::ImportExport::ObjectBackend::Ticket"
 
 #: ../../content/index.rst:72
 msgid "ImportExport::Ticket::SynchronizeWithForeignDB"
-msgstr ""
+msgstr "ImportExport::Ticket::SynchronizeWithForeignDB"
 
 #: ../../content/index.rst:73
 msgid ""
@@ -180,18 +180,24 @@ msgid ""
 "imported tickets on this system. This is only available for created, not "
 "for updated tickets."
 msgstr ""
+"Wenn aktiviert, werden zusätzliche Daten wie die Historie und Links aus "
+"einer fremden DB, die die exportierten Tickets enthält, gelesen und den "
+"importierten Tickets auf diesem System hinzugefügt. Dies ist nur für "
+"erstellte, nicht für aktualisierte Tickets verfügbar."
 
 #: ../../content/index.rst:76
 msgid "Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps"
-msgstr ""
+msgstr "Core::ImportExport::ObjectBackend::Ticket::ImportValueMaps"
 
 #: ../../content/index.rst:79
 msgid "ImportExport::Ticket::ImportValueMap###001-Custom"
-msgstr ""
+msgstr "ImportExport::Ticket::ImportValueMap###001-Custom"
 
 #: ../../content/index.rst:80
 msgid "Value map. Define a key and a value map from import file to OTOBO."
 msgstr ""
+"Wertzuordnung. Definieren Sie einen Schlüssel und eine Wertezuordnung von "
+"der Importdatei zu OTOBO."
 
 #: ../../content/index.rst:83
 msgid "About"
