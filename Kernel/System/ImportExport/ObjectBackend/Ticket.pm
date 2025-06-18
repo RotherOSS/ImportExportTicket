@@ -22,7 +22,9 @@ use warnings;
 use namespace::autoclean;
 use utf8;
 
-# core modules
+use Kernel::Language qw(Translatable);
+use Kernel::System::VariableCheck qw(:all);
+
 use Encode;
 use MIME::Base64 qw(encode_base64 decode_base64);
 
@@ -38,7 +40,7 @@ our @ObjectDependencies = (
     'Kernel::System::DynamicField',
     'Kernel::System::DynamicField::Backend',
     'Kernel::System::ImportExport',
-    'Kernel::System::LinkObject',
+    'Kernel::System::Link',
     'Kernel::System::Lock',
     'Kernel::System::Log',
     'Kernel::System::Priority',
@@ -54,7 +56,7 @@ our @ObjectDependencies = (
 
 =head1 NAME
 
-Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for tickets
+Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for Tickets
 
 =head1 DESCRIPTION
 
@@ -69,7 +71,7 @@ create an object
     use Kernel::System::ObjectManager;
 
     local $Kernel::OM = Kernel::System::ObjectManager->new();
-    my $BackendObject = $Kernel::OM->Get('Kernel::System::ImportExport::ObjectBackend::Ticket');
+    my $BackendObject = $Kernel::OM->Get('Kernel::System::ImportExport::ObjectBackend::ITSMConfigItem');
 
 =cut
 
@@ -503,7 +505,7 @@ sub MappingObjectAttributesGet {
             @TypeElements,
             qw( Queue QueueID ),
             @ServiceElements,
-            qw( StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock LockID ),
+            qw( State StateID Priority PriorityID CustomerID CustomerUserID Owner OwnerID Lock LockID ),
             @ResponsibleElements,
             qw( ArchiveFlag Created )
         );
