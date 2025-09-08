@@ -22,9 +22,7 @@ use warnings;
 use namespace::autoclean;
 use utf8;
 
-use Kernel::Language qw(Translatable);
-use Kernel::System::VariableCheck qw(:all);
-
+# core modules
 use Encode;
 use MIME::Base64 qw(encode_base64 decode_base64);
 
@@ -56,7 +54,7 @@ our @ObjectDependencies = (
 
 =head1 NAME
 
-Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for Tickets
+Kernel::System::ImportExport::ObjectBackend::Ticket - import/export backend for tickets
 
 =head1 DESCRIPTION
 
