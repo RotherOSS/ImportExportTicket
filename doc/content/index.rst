@@ -45,6 +45,8 @@ ElasticSearch has to be reindexed after an import.
 There is an import feature called extended synchronisation. This feature can be activated via the SysConfig.
 When using the extended synchronization, TicketID as well as Article_ArticleID have to be provided.
 
+If old, imported ticket numbers with a different system ID (important, but with the same ticket number generator) are also to be recognized in follow-ups, install the *LegacySystemIDSupport* package and enter the original system ID in the settings.
+
 Configuration Reference
 =======================
 
