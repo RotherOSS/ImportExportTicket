@@ -11,7 +11,7 @@ Sacrifice to Sphinx
 
 Description
 ===========
-Ticket backend for the ImportExport module.
+Ticket backend for the ImportExport module. This backend allows to import and export tickets with their articles. It also supports the synchronization of the tickets with a foreign database, which can be used to import the history of the tickets.
 
 System requirements
 ===================
